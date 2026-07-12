@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Little Wilds</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:#1a1410;font-family:'Trebuchet MS',sans-serif;}
+#app{position:relative;width:100vw;height:100vh;}
+
+/* SKY & SCENE */
+#sky{position:absolute;inset:0;background:linear-gradient(180deg,#7ec8e3,#f6e7b0);transition:background 4s;}
+#celestial{position:absolute;width:50px;height:50px;border-radius:50%;top:12%;left:20%;transition:left 60s linear,top 4s;}
+.sun{background:radial-gradient(circle at 35% 35%,#fff6d6,#ffcf6b 60%,#f2a93b);box-shadow:0 0 40px 12px #ffd98a88;}
+.moon{background:radial-gradient(circle at 35% 35%,#fefefe,#dfe6ef,#b9c3d4);box-shadow:0 0 30px 8px #cfe0ff44;}
+
+/* CLOUDS */
+.cloud{position:absolute;pointer-events:none;}
+
+/* HILLS */
+#hills{position:absolute;bottom:28%;left:0;width:100%;height:160px;background:#8fa86a;opacity:.4;border-radius:50% 50% 0 0/100% 100% 0 0;transform:scaleX(1.5);}
+
+/* GROUND */
+#ground{position:absolute;bottom:0;left:0;width:100%;height:32%;background:linear-gradient(180deg,#c9b878,#a89658);}
+#groundTop{position:absolute;bottom:32%;left:0;width:100%;height:6px;background:#d4c88a;}
+
+/* TREES */
+.tree{position:absolute;bottom:32%;transform-origin:bottom center;}
+.tree-trunk{width:12px;height:80px;background:#5a4530;margin:0 auto;border-radius:4px 4px 0 0;}
+.tree-leaves{background:#6b7a4a;border-radius:50% 50% 40% 40%;margin:-50px auto 0;}
+.tree.sway{animation:treesway 4s ease-in-out infinite;}
+@keyframes treesway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
+
+/* GRASS TUFTS */
+.grass{position:absolute;bottom:32%;width:28px;height:20px;}
+.grass.sway{animation:grassway 2s ease-in-out infinite;}
+@keyframes grassway{0%,100%{transform:rotate(-5deg);}50%{transform:rotate(5deg);}}
+
+/* RAIN */
+.raindrop{position:absolute;width:2px;height:16px;background:linear-gradient(transparent,#b8dcff);border-radius:2px;animation:rain linear infinite;}
+@keyframes rain{from{transform:translateY(-20px)}to{transform:translateY(110vh)}}
+
+/* WIND */
+#wind{position:absolute;inset:0;pointer-events:none;opacity:0;}
+#wind.on{animation:windsweep 3s ease-in-out infinite;}
+@keyframes windsweep{0%{opacity:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.04) 50%,transparent 70%);transform:translateX(-100%);}50%{opacity:1;}100%{opacity:0;transform:translateX(100%);}}
+
+/* BUGS */
+.bug{position:absolute;width:8px;height:5px;background:#2a2010;border-radius:50%;bottom:33%;}
+
+/* PROPS */
+.prop{position:absolute;bottom:32%;}
+.flame{transform-origin:bottom;animation:flicker .9s ease-in-out infinite;}
+@keyframes flicker{0%,100%{transform:scaleY(1) rotate(-2deg);}50%{transform:scaleY(1.2) rotate(2deg);}}
+
+/* DINO */
+#dinoWrap{position:absolute;bottom:32%;left:50%;transform:translateX(-50%);z-index:20;cursor:grab;touch-action:none;transition:left 2s ease-in-out;}
+#dinoWrap.held{cursor:grabbing;transition:none;z-index:60;}
+#dinoWrap.notransition{transition:none;}
+
+#dinoImg{
+  width:220px;height:auto;
+  transform-origin:bottom center;
+  transition:transform .3s;
+  filter:drop-shadow(0 8px 6px rgba(0,0,0,.25));
+}
+
+/* animations applied to the img */
+#dinoImg.breathe{animation:breathe 3s ease-in-out infinite;}
+@keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.02,.98);}}
+
+#dinoImg.walk{animation:walk .55s ease-in-out infinite;}
+@keyframes walk{0%,100%{transform:translateY(0) rotate(0deg);}25%{transform:translateY(-6px) rotate(1deg);}75%{transform:translateY(-6px) rotate(-1deg);}}
+
+#dinoImg.held{animation:squirm .3s ease-in-out infinite;}
+@keyframes squirm{0%,100%{transform:rotate(-8deg) scale(.95);}50%{transform:rotate(8deg) scale(.95);}}
+
+#dinoImg.excited{animation:excited .4s ease-in-out 3;}
+@keyframes excited{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+
+#dinoImg.sleep{animation:sleepbreathe 3s ease-in-out infinite;}
+@keyframes sleepbreathe{0%,100%{transform:scale(1);}50%{transform:scale(1.03,.97);}}
+
+.facing-left #dinoImg{transform:scaleX(-1);}
+.facing-left #dinoImg.breathe{animation:breatheFlip 3s ease-in-out infinite;}
+@keyframes breatheFlip{0%,100%{transform:scaleX(-1) scale(1);}50%{transform:scaleX(-1) scale(1.02,.98);}}
+.facing-left #dinoImg.walk{animation:walkFlip .55s ease-in-out infinite;}
+@keyframes walkFlip{0%,100%{transform:scaleX(-1) translateY(0);}50%{transform:scaleX(-1) translateY(-6px);}}
+
+/* ZZZ */
+.zzz{position:absolute;top:-30px;right:-10px;font-size:18px;font-weight:bold;color:#fff;text-shadow:0 1px 3px #0005;animation:zfloat 2.5s ease-in infinite;pointer-events:none;}
+@keyframes zfloat{0%{opacity:0;transform:translate(0,0) scale(.7);}30%{opacity:1;}100%{opacity:0;transform:translate(16px,-40px) scale(1.1);}}
+
+/* SPEECH */
+#speech{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) scale(.8);
+  background:#fffdf5;border:2px solid #e8d9a888;border-radius:14px;
+  padding:6px 14px;font-size:.82em;color:#3b3020;font-weight:600;
+  white-space:nowrap;opacity:0;transition:opacity .2s,transform .2s;
+  pointer-events:none;box-shadow:0 4px 12px #0002;
+}
+#speech.show{opacity:1;transform:translateX(-50%) scale(1);}
+#speech::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#fffdf5;}
+
+/* UI TOP */
+#topBar{position:absolute;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px;pointer-events:none;}
+#infoBox{background:#00000055;backdrop-filter:blur(6px);color:#fff5e0;padding:8px 14px;border-radius:12px;pointer-events:auto;min-width:180px;}
+#infoBox strong{font-size:1.05em;}
+.stagebadge{display:inline-block;margin-left:6px;background:#c98a3e;color:#1a1000;font-weight:bold;padding:1px 8px;border-radius:8px;font-size:.75em;}
+#growthWrap{width:140px;height:5px;background:#ffffff33;border-radius:4px;margin-top:5px;overflow:hidden;}
+#growthFill{height:100%;background:#f4c96b;width:0%;transition:width .8s;}
+#weatherLine{font-size:.75em;margin-top:4px;opacity:.85;}
+#settingsBtn{pointer-events:auto;background:#00000055;border:none;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:1.1em;}
+#settingsPanel{position:absolute;top:52px;right:14px;background:#1e1a12ee;border-radius:12px;padding:14px;color:#f2ecd6;z-index:45;display:none;min-width:190px;font-size:.85em;}
+#settingsPanel.show{display:block;}
+#settingsPanel button{width:100%;margin-top:10px;padding:8px;border:none;border-radius:8px;background:#5a2e2e;color:#fff;cursor:pointer;font-family:inherit;}
+
+/* ACTION BAR */
+#actionBar{position:absolute;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:center;gap:10px;padding:14px;flex-wrap:wrap;}
+.btn{background:#00000060;backdrop-filter:blur(4px);border:1px solid #ffffff22;color:#fff;border-radius:14px;padding:10px 14px;font-size:1.3em;cursor:pointer;transition:transform .12s,background .12s;line-height:1;font-family:inherit;}
+.btn small{display:block;font-size:.38em;margin-top:2px;font-weight:600;opacity:.85;letter-spacing:.3px;}
+.btn:hover{transform:translateY(-3px);background:#00000088;}
+.btn.on{background:#c98a3ecc;}
+
+/* SELECT SCREEN */
+#selectScreen{position:absolute;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 20%,#2b3a2a,#12180f 80%);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f2ecd6;padding:24px;text-align:center;}
+#selectScreen h1{font-size:2.2em;color:#f4e2ae;letter-spacing:1px;margin-bottom:6px;}
+#selectScreen p{opacity:.75;max-width:440px;margin-bottom:28px;}
+.cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+.card{width:180px;background:#22281c;border:2px solid #3c4530;border-radius:16px;padding:14px 10px 16px;cursor:pointer;transition:transform .15s,border-color .15s;}
+.card:hover{transform:translateY(-5px);border-color:#f4e2ae;}
+.card.picked{border-color:#f4e2ae;background:#2e3524;}
+.card img{width:100%;height:auto;border-radius:8px;}
+.card h3{margin:8px 0 2px;color:#f4e2ae;font-size:1em;}
+.card .biome{font-size:.75em;opacity:.65;}
+.namerow{margin-top:22px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;}
+.namerow input{font-family:inherit;font-size:1em;padding:9px 14px;border-radius:10px;border:2px solid #3c4530;background:#1a1f14;color:#f2ecd6;outline:none;width:200px;}
+.namerow input:focus{border-color:#f4e2ae;}
+#hatchBtn{font-family:inherit;font-size:1em;padding:10px 22px;border-radius:10px;border:none;background:#c98a3e;color:#231a0f;font-weight:bold;cursor:pointer;}
+#hatchBtn:disabled{opacity:.4;cursor:default;}
+
+/* AWAY MODAL */
+#awayModal{position:absolute;inset:0;z-index:70;background:#00000088;display:flex;align-items:center;justify-content:center;padding:20px;}
+#awayModal.hide{display:none;}
+#awayCard{background:#fbf5e6;border-radius:18px;max-width:400px;width:100%;padding:22px 24px;color:#3b3222;}
+#awayCard h2{margin-bottom:4px;color:#7a5c2a;}
+#awayCard .sub{font-size:.82em;opacity:.7;margin-bottom:14px;}
+#awayCard ul{padding-left:18px;margin-bottom:16px;}
+#awayCard li{margin-bottom:6px;line-height:1.4;}
+#awayCard button{width:100%;padding:11px;border:none;border-radius:10px;background:#c98a3e;color:#231a0f;font-weight:bold;font-size:1em;cursor:pointer;font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SELECT -->
+  <div id="selectScreen">
+    <h1>🥚 Little Wilds</h1>
+    <p>Pick your hatchling. They'll remember you every time you come back.</p>
+    <div class="cards" id="cards"></div>
+    <div class="namerow">
+      <input id="nameIn" placeholder="Name your dino..." maxlength="16">
+      <button id="hatchBtn" disabled>Hatch →</button>
+    </div>
+  </div>
+
+  <!-- SCENE -->
+  <div id="scene" style="position:absolute;inset:0;display:none;">
+    <div id="sky"></div>
+    <div id="celestial" class="sun"></div>
+    <div id="cloudLayer"></div>
+    <div id="wind"></div>
+    <div id="hills"></div>
+    <div id="treeLayer"></div>
+    <div id="grassLayer"></div>
+    <div id="groundTop"></div>
+    <div id="ground"></div>
+    <div id="propLayer"></div>
+    <div id="bugLayer"></div>
+    <div id="rainLayer"></div>
+
+    <div id="dinoWrap">
+      <div id="speech"></div>
+      <img id="dinoImg" src="" alt="dino">
+    </div>
+  </div>
+
+  <!-- TOP UI -->
+  <div id="topBar" style="display:none;">
+    <div id="infoBox">
+      <strong id="iName">—</strong><span class="stagebadge" id="iStage">Baby</span>
+      <div id="growthWrap"><div id="growthFill"></div></div>
+      <div id="weatherLine">☀️ Clear</div>
+    </div>
+    <button id="settingsBtn">⚙️</button>
+  </div>
+  <div id="settingsPanel">
+    <div style="margin-bottom:4px;font-weight:bold;">Little Wilds</div>
+    <div style="opacity:.7;font-size:.85em;">Your dino is saved automatically.</div>
+    <button id="resetBtn">Release into the wild 🌿</button>
+  </div>
+
+  <!-- ACTION BAR -->
+  <div id="actionBar" style="display:none;">
+    <button class="btn" id="feedBtn">🍃<small>Feed</small></button>
+    <button class="btn" id="petBtn">✋<small>Pet</small></button>
+    <button class="btn" id="playBtn">🎾<small>Play</small></button>
+    <button class="btn" id="fireBtn">🔥<small>Firepit</small></button>
+    <button class="btn" id="flowerBtn">🌸<small>Flowers</small></button>
+    <button class="btn" id="pondBtn">💧<small>Pond</small></button>
+  </div>
+
+  <!-- AWAY -->
+  <div id="awayModal" class="hide">
+    <div id="awayCard">
+      <h2 id="awayTitle">While you were away…</h2>
+      <div class="sub" id="awaySub"></div>
+      <ul id="awayList"></ul>
+      <button id="awayClose">Welcome back 🦕</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const SAVE_KEY = 'little-wilds-v2';
+
+// Only trike for now — more dinos added later
+const SPECIES = {
+  trike: {
+    key:'trike', name:'Triceratops', biome:'Sunbaked Plains',
+    idle:'assets/dinos/trike/trike-idle.png',
+    walk1:'assets/dinos/trike/trike-walk-1.png',
+    walk2:'assets/dinos/trike/trike-walk-2.png',
+    sleep:'assets/dinos/trike/trike-sleep.png',
+    eat:'assets/dinos/trike/trike-eat.png',
+    held:'assets/dinos/trike/trike-held.png',
+    skyDay:['#7ec8e3','#f6e7b0'],
+    skyDusk:['#e8925f','#f9c98a'],
+    skyNight:['#1b2540','#3a4566'],
+    ground:'#c9b878', groundDark:'#a89658',
+    treeColor:'#6b7a4a', grassColor:'#9aab5c',
+    talk:['*chuff*','I found a rock. It is MY rock now.','Can we push something over?','*happy stomp*','The sun feels nice on my frill.','*sniffs air* Someone nearby has leaves.','My horns are growing! I think.']
+  }
+};
+
+let state = null;
+let sp = null;
+let weather = 'clear';
+let walkFrame = 0;
+let walkTimer = null;
+let idleTimer = null;
+let speechTimeout = null;
+
+// ---- STORAGE ----
+async function load(){
+  try{ const r = await window.storage.get(SAVE_KEY,false); if(r?.value) return JSON.parse(r.value); }catch(e){}
+  return null;
+}
+async function save(){
+  try{ await window.storage.set(SAVE_KEY, JSON.stringify(state), false); }catch(e){}
+}
+
+// ---- SELECT SCREEN ----
+const cardsEl = document.getElementById('cards');
+const nameIn = document.getElementById('nameIn');
+const hatchBtn = document.getElementById('hatchBtn');
+let picked = null;
+
+Object.values(SPECIES).forEach(s=>{
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.innerHTML = `<img src="${s.idle}" alt="${s.name}"><h3>${s.name}</h3><div class="biome">${s.biome}</div>`;
+  c.onclick = ()=>{
+    document.querySelectorAll('.card').forEach(x=>x.classList.remove('picked'));
+    c.classList.add('picked'); picked = s.key; check();
+  };
+  cardsEl.appendChild(c);
+});
+nameIn.oninput = check;
+function check(){ hatchBtn.disabled = !(picked && nameIn.value.trim()); }
+
+hatchBtn.onclick = async ()=>{
+  state = { species:picked, name:nameIn.value.trim(), birthTs:Date.now(), lastSeenTs:Date.now(), careTicks:0, mood:70, props:{fire:false,flowers:false,pond:false} };
+  await save();
+  document.getElementById('selectScreen').style.display='none';
+  startGame(false);
+};
+
+// ---- BOOT ----
+(async()=>{
+  const saved = await load();
+  if(saved){ state=saved; document.getElementById('selectScreen').style.display='none'; startGame(true); }
+})();
+
+// ---- GAME START ----
+function startGame(checkAway){
+  sp = SPECIES[state.species];
+  document.getElementById('scene').style.display='block';
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('actionBar').style.display='flex';
+
+  buildScene();
+  setDinoImg('idle');
+  setDinoClass('breathe');
+  positionDino('50%');
+  updateUI();
+  setSky();
+  scheduleWeather();
+  spawnBugs();
+  scheduleIdle();
+  setupDrag();
+  setupButtons();
+
+  if(checkAway) showAway();
+  state.lastSeenTs = Date.now();
+  save();
+
+  setInterval(()=>{ state.lastSeenTs=Date.now(); save(); updateUI(); }, 30000);
+  setInterval(setSky, 60000);
+  window.addEventListener('beforeunload',()=>{ state.lastSeenTs=Date.now(); save(); });
+}
+
+// ---- SCENE ----
+function buildScene(){
+  // trees
+  const tl = document.getElementById('treeLayer'); tl.innerHTML='';
+  [6,16,78,90].forEach((p,i)=>{
+    const t=document.createElement('div'); t.className='tree sway';
+    t.style.left=p+'%'; t.style.animationDelay=(i*.7)+'s';
+    const w=65+(i%2)*25, h=65+(i%2)*25;
+    t.innerHTML=`<div class="tree-leaves" style="width:${w}px;height:${h}px;background:${sp.treeColor};margin-top:${-h*.7}px;"></div><div class="tree-trunk"></div>`;
+    tl.appendChild(t);
+  });
+  // grass
+  const gl = document.getElementById('grassLayer'); gl.innerHTML='';
+  for(let i=0;i<10;i++){
+    const g=document.createElement('div'); g.className='grass sway';
+    g.style.left=(3+i*10)+'%'; g.style.animationDelay=(i*.18)+'s';
+    g.innerHTML=`<svg viewBox="0 0 28 20" style="width:100%;height:100%;"><path d="M4 20 Q6 6 10 20" stroke="${sp.grassColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M13 20 Q15 2 17 20" stroke="${sp.grassColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M21 20 Q23 8 25 20" stroke="${sp.grassColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>`;
+    gl.appendChild(g);
+  }
+  document.getElementById('ground').style.background=`linear-gradient(180deg,${sp.ground},${sp.groundDark})`;
+  document.getElementById('groundTop').style.background=sp.ground;
+  buildClouds();
+  buildProps();
+}
+
+// ---- SKY ----
+function setSky(){
+  const h = new Date().getHours()+new Date().getMinutes()/60;
+  const sky=document.getElementById('sky'), cel=document.getElementById('celestial');
+  function hex2rgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+  function mix(c1,c2,t){const a=hex2rgb(c1),b=hex2rgb(c2);return`rgb(${(a[0]+(b[0]-a[0])*t)|0},${(a[1]+(b[1]-a[1])*t)|0},${(a[2]+(b[2]-a[2])*t)|0})`;}
+
+  let top,bot,isSun=true,celL='50%',celT='12%',starOp=0;
+  if(h>=6&&h<17){top=sp.skyDay[0];bot=sp.skyDay[1];const p=(h-6)/11;celL=(10+p*80)+'%';celT=(20-Math.sin(p*Math.PI)*10)+'%';}
+  else if(h>=17&&h<20){const t=(h-17)/3;top=mix(sp.skyDay[0],sp.skyDusk[0],t);bot=mix(sp.skyDay[1],sp.skyDusk[1],t);celL='86%';celT='28%';starOp=t*.5;}
+  else{top=sp.skyNight[0];bot=sp.skyNight[1];isSun=false;celL='65%';celT='14%';starOp=1;}
+  if(h>=5&&h<6){const t=h-5;top=mix(sp.skyNight[0],sp.skyDay[0],t);bot=mix(sp.skyNight[1],sp.skyDay[1],t);celL='14%';celT='22%';starOp=1-t;}
+
+  sky.style.background=`linear-gradient(180deg,${top},${bot})`;
+  cel.style.left=celL; cel.style.top=celT;
+  cel.className=isSun?'sun':'moon';
+
+  // stars
+  let stars=document.querySelectorAll('.star');
+  if(!stars.length){for(let i=0;i<35;i++){const s=document.createElement('div');s.className='star';s.style.cssText=`position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;left:${Math.random()*100}%;top:${Math.random()*40}%;transition:opacity 2s;`;sky.appendChild(s);}}
+  document.querySelectorAll('.star').forEach(s=>s.style.opacity=starOp>.3?starOp*.9:0);
+}
+
+// ---- WEATHER ----
+function scheduleWeather(){
+  setInterval(()=>{
+    const r=Math.random();
+    weather=r<.55?'clear':r<.72?'cloudy':r<.88?'windy':'rain';
+    applyWeather(); updateUI();
+  },50000);
+  applyWeather();
+}
+function applyWeather(){
+  document.getElementById('rainLayer').innerHTML='';
+  document.getElementById('wind').classList.remove('on');
+  document.querySelectorAll('.tree,.grass').forEach(e=>{e.classList.remove('sway');});
+  if(weather==='rain'||weather==='windy') document.querySelectorAll('.tree,.grass').forEach(e=>e.classList.add('sway'));
+  else document.querySelectorAll('.grass').forEach(e=>e.classList.add('sway'));
+  if(weather==='windy') document.getElementById('wind').classList.add('on');
+  if(weather==='rain'){
+    for(let i=0;i<38;i++){
+      const d=document.createElement('div'); d.className='raindrop';
+      d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*-100+'px';
+      d.style.animationDuration=(.4+Math.random()*.3)+'s'; d.style.animationDelay=Math.random()*.8+'s';
+      document.getElementById('rainLayer').appendChild(d);
+    }
+  }
+  buildClouds();
+}
+function buildClouds(){
+  const cl=document.getElementById('cloudLayer'); cl.innerHTML='';
+  const n=weather==='cloudy'?6:weather==='rain'?7:2;
+  const col=weather==='rain'?'#8d9aaa':'#fff';
+  for(let i=0;i<n;i++){
+    const c=document.createElement('div'); c.className='cloud';
+    const w=60+Math.random()*80;
+    c.style.cssText=`width:${w}px;top:${4+Math.random()*18}%;left:-25%;opacity:.88;`;
+    c.innerHTML=`<svg viewBox="0 0 100 50" style="width:100%;display:block;"><ellipse cx="28" cy="30" rx="24" ry="16" fill="${col}" opacity=".9"/><ellipse cx="52" cy="22" rx="28" ry="18" fill="${col}" opacity=".95"/><ellipse cx="76" cy="30" rx="20" ry="14" fill="${col}" opacity=".9"/></svg>`;
+    cl.appendChild(c);
+    const dur=35+Math.random()*40, delay=i*7;
+    setTimeout(()=>animCloud(c,dur),delay*1000);
+  }
+}
+function animCloud(c,dur){
+  let s=performance.now();
+  (function step(t){
+    const pct=((t-s)/1000/dur)*140-20;
+    c.style.left=pct+'%';
+    if(pct<125) requestAnimationFrame(step);
+    else{s=performance.now();requestAnimationFrame(step);}
+  })(performance.now());
+}
+
+// ---- PROPS ----
+function buildProps(){
+  const pl=document.getElementById('propLayer'); pl.innerHTML='';
+  if(state.props.fire){
+    const el=document.createElement('div'); el.className='prop'; el.style.left='68%';
+    el.innerHTML=`<svg width="70" height="60" viewBox="0 0 70 60"><ellipse cx="35" cy="54" rx="28" ry="6" fill="#5a4530"/><ellipse cx="35" cy="50" rx="22" ry="4" fill="#3a2a18"/><g class="flame"><path d="M35 48 C24 36 27 20 35 12 C43 20 46 36 35 48Z" fill="#f2932e"/><path d="M35 44 C28 34 30 24 35 18 C40 24 42 34 35 44Z" fill="#f7d24a"/><path d="M35 38 C31 32 32 26 35 22 C38 26 39 32 35 38Z" fill="#fff5aa"/></g></svg>`;
+    pl.appendChild(el);
+  }
+  if(state.props.flowers){
+    const el=document.createElement('div'); el.className='prop'; el.style.left='14%';
+    el.innerHTML=`<svg width="90" height="38" viewBox="0 0 90 38">
+      <g transform="translate(0,4)"><circle cx="14" cy="20" r="5" fill="#e8809e"/><circle cx="8" cy="13" r="4" fill="#f2a4bc"/><circle cx="20" cy="13" r="4" fill="#f2a4bc"/><circle cx="14" cy="9" r="4" fill="#f2a4bc"/><circle cx="14" cy="20" r="2.5" fill="#f6d34e"/></g>
+      <g transform="translate(28,0)"><circle cx="14" cy="20" r="5" fill="#a97fd1"/><circle cx="8" cy="13" r="4" fill="#c6a6e6"/><circle cx="20" cy="13" r="4" fill="#c6a6e6"/><circle cx="14" cy="9" r="4" fill="#c6a6e6"/><circle cx="14" cy="20" r="2.5" fill="#f6d34e"/></g>
+      <g transform="translate(56,2)"><circle cx="14" cy="20" r="5" fill="#f2c14e"/><circle cx="8" cy="13" r="4" fill="#f7dd8a"/><circle cx="20" cy="13" r="4" fill="#f7dd8a"/><circle cx="14" cy="9" r="4" fill="#f7dd8a"/><circle cx="14" cy="20" r="2.5" fill="#a9772e"/></g>
+    </svg>`;
+    pl.appendChild(el);
+  }
+  if(state.props.pond){
+    const el=document.createElement('div'); el.className='prop'; el.style.left='38%'; el.style.bottom='31%';
+    el.innerHTML=`<svg width="120" height="44" viewBox="0 0 120 44"><ellipse cx="60" cy="28" rx="56" ry="14" fill="#8fc7d0"/><ellipse cx="60" cy="26" rx="44" ry="10" fill="#bfe3e8"/><ellipse cx="40" cy="24" rx="10" ry="4" fill="#cdeef2" opacity=".6"/></svg>`;
+    pl.appendChild(el);
+  }
+}
+
+// ---- BUGS ----
+function spawnBugs(){
+  setInterval(()=>{
+    if(Math.random()<.55){
+      const b=document.createElement('div'); b.className='bug';
+      const goRight=Math.random()<.5;
+      b.style.left=goRight?'-2%':'102%';
+      b.style.bottom=(32.5+Math.random()*2)+'%';
+      document.getElementById('bugLayer').appendChild(b);
+      const dur=7+Math.random()*5;
+      b.animate([{transform:'translateX(0)'},{transform:`translateX(${goRight?'':'-'}105vw)`}],{duration:dur*1000,easing:'linear'});
+      setTimeout(()=>b.remove(),dur*1000);
+    }
+  },10000);
+}
+
+// ---- DINO HELPERS ----
+const dinoImg = document.getElementById('dinoImg');
+const dinoWrap = document.getElementById('dinoWrap');
+const speechEl = document.getElementById('speech');
+
+function setDinoImg(pose){
+  const map={idle:sp.idle,walk1:sp.walk1,walk2:sp.walk2,sleep:sp.sleep,eat:sp.eat,held:sp.held};
+  dinoImg.src = map[pose]||sp.idle;
+}
+function setDinoClass(cls){
+  dinoImg.className=cls||'';
+}
+function positionDino(leftPct, animate=false){
+  if(!animate) dinoWrap.classList.add('notransition');
+  dinoWrap.style.left=leftPct;
+  dinoWrap.style.transform='translateX(-50%)';
+  if(!animate) requestAnimationFrame(()=>dinoWrap.classList.remove('notransition'));
+}
+
+// ---- SPEECH ----
+function say(text, ms=2800){
+  speechEl.textContent=text;
+  speechEl.classList.add('show');
+  clearTimeout(speechTimeout);
+  speechTimeout=setTimeout(()=>speechEl.classList.remove('show'),ms);
+}
+
+// ---- WALKING ANIMATION ----
+function startWalk(targetPct, onDone){
+  clearInterval(walkTimer);
+  const cur=parseFloat(dinoWrap.style.left||'50');
+  dinoWrap.classList.remove('notransition');
+  dinoWrap.style.left=targetPct+'%';
+  dinoWrap.classList.toggle('facing-left', targetPct<cur);
+  let frame=0;
+  walkTimer=setInterval(()=>{
+    frame++;
+    setDinoImg(frame%2===0?'walk1':'walk2');
+    setDinoClass('walk');
+  },280);
+  setTimeout(()=>{
+    clearInterval(walkTimer);
+    setDinoImg('idle'); setDinoClass('breathe');
+    if(onDone) onDone();
+  },2200);
+}
+
+// ---- IDLE BEHAVIORS ----
+function scheduleIdle(){
+  clearInterval(idleTimer);
+  idleTimer=setInterval(runIdle, 7000);
+}
+function runIdle(){
+  if(dinoWrap.classList.contains('held')) return;
+  const opts=['wander','talk','blink'];
+  if(state.props.flowers) opts.push('sniff');
+  if(state.props.fire) opts.push('sitfire');
+  if(state.props.pond) opts.push('drink');
+  if(state.mood<40) opts.push('sleep');
+  const pick=opts[Math.floor(Math.random()*opts.length)];
+  if(pick==='wander') startWalk(10+Math.random()*80);
+  else if(pick==='talk') say(sp.talk[Math.floor(Math.random()*sp.talk.length)]);
+  else if(pick==='blink'){ dinoImg.style.filter='brightness(.92)'; setTimeout(()=>dinoImg.style.filter='',120); }
+  else if(pick==='sniff') startWalk(18, ()=>say('*sniff sniff* 🌸'));
+  else if(pick==='sitfire') startWalk(62, ()=>say('This is really nice.'));
+  else if(pick==='drink') startWalk(42, ()=>say('*slurp*'));
+  else if(pick==='sleep'){
+    setDinoImg('sleep'); setDinoClass('sleep');
+    say('*yawn*...',1200);
+    const z=document.createElement('div'); z.className='zzz'; z.textContent='Zzz';
+    dinoWrap.appendChild(z);
+    setTimeout(()=>{ setDinoImg('idle'); setDinoClass('breathe'); z.remove(); say('*stretch* good nap',1400); },12000);
+  }
+}
+
+// ---- DRAG ----
+function setupDrag(){
+  let dragging=false,ox=0,oy=0,phraseI=0;
+  const phrases=["Woah, put me DOWN!","I'm gonna be sick!","Never been this high!","This is NOT okay.","*panicked kicking*","HELLO?? Ground please!"];
+  let phraseTimer;
+
+  dinoWrap.addEventListener('pointerdown',e=>{
+    dinoWrap.setPointerCapture(e.pointerId);
+    dragging=true;
+    const r=dinoWrap.getBoundingClientRect();
+    ox=e.clientX-r.left; oy=e.clientY-r.top;
+    dinoWrap.classList.add('held','notransition');
+    setDinoImg('held'); setDinoClass('held');
+    clearInterval(idleTimer);
+    say(phrases[phraseI%phrases.length],1200);
+    phraseTimer=setInterval(()=>{ phraseI++; say(phrases[phraseI%phrases.length],1100); },1200);
+  });
+  window.addEventListener('pointermove',e=>{
+    if(!dragging) return;
+    const pr=document.getElementById('app').getBoundingClientRect();
+    dinoWrap.style.left=(e.clientX-ox-pr.left+dinoWrap.offsetWidth/2)+'px';
+    dinoWrap.style.bottom=(pr.height-(e.clientY-oy)-dinoWrap.offsetHeight+pr.top)+'px';
+    dinoWrap.style.transform='none';
+  });
+  function drop(){
+    if(!dragging) return; dragging=false;
+    clearInterval(phraseTimer);
+    const pr=document.getElementById('app').getBoundingClientRect();
+    const curL=parseFloat(dinoWrap.style.left);
+    const pct=Math.max(5,Math.min(90,(curL/pr.width)*100));
+    dinoWrap.classList.remove('held','notransition');
+    dinoWrap.style.bottom='32%';
+    dinoWrap.style.transform='translateX(-50%)';
+    setTimeout(()=>dinoWrap.style.left=pct+'%',20);
+    setDinoImg('idle'); setDinoClass('breathe');
+    say('Phew! Sweet solid ground.',1800);
+    state.mood=Math.min(100,state.mood+3); save();
+    scheduleIdle();
+  }
+  window.addEventListener('pointerup',drop);
+  window.addEventListener('pointercancel',drop);
+}
+
+// ---- BUTTONS ----
+function setupButtons(){
+  document.getElementById('feedBtn').onclick=()=>{
+    setDinoImg('eat'); setDinoClass('excited');
+    say('*nom nom* Thank you!!',2000);
+    state.careTicks++; state.mood=Math.min(100,state.mood+10); save();
+    setTimeout(()=>{ setDinoImg('idle'); setDinoClass('breathe'); updateUI(); },2000);
+    burst('💚');
+  };
+  document.getElementById('petBtn').onclick=()=>{
+    setDinoClass('excited');
+    say('*happy rumble* 🥰',1800);
+    state.careTicks++; state.mood=Math.min(100,state.mood+6); save();
+    setTimeout(()=>setDinoClass('breathe'),1400);
+    burst('✨');
+  };
+  document.getElementById('playBtn').onclick=()=>{
+    say('WOO! Let\'s go!!',1400);
+    state.careTicks++; state.mood=Math.min(100,state.mood+12); save();
+    startWalk(10+Math.random()*80, ()=>updateUI());
+    burst('🎾');
+  };
+  document.getElementById('fireBtn').onclick=function(){
+    state.props.fire=!state.props.fire; this.classList.toggle('on',state.props.fire);
+    buildProps(); save();
+    if(state.props.fire) say('Ooooh fire!! 🔥',1600);
+  };
+  document.getElementById('flowerBtn').onclick=function(){
+    state.props.flowers=!state.props.flowers; this.classList.toggle('on',state.props.flowers);
+    buildProps(); save();
+    if(state.props.flowers) say('Pretty flowers! 🌸',1600);
+  };
+  document.getElementById('pondBtn').onclick=function(){
+    state.props.pond=!state.props.pond; this.classList.toggle('on',state.props.pond);
+    buildProps(); save();
+    if(state.props.pond) say('A pond! *splashes*',1600);
+  };
+  // sync toggle button states
+  document.getElementById('fireBtn').classList.toggle('on',state.props.fire);
+  document.getElementById('flowerBtn').classList.toggle('on',state.props.flowers);
+  document.getElementById('pondBtn').classList.toggle('on',state.props.pond);
+
+  document.getElementById('settingsBtn').onclick=()=>document.getElementById('settingsPanel').classList.toggle('show');
+  document.getElementById('resetBtn').onclick=async()=>{
+    if(confirm('Release your dino back into the wild and start fresh?')){
+      try{ await window.storage.set(SAVE_KEY,JSON.stringify(null),false); }catch(e){}
+      location.reload();
+    }
+  };
+  document.getElementById('awayClose').onclick=()=>document.getElementById('awayModal').classList.add('hide');
+}
+
+// ---- BURST ----
+function burst(emoji){
+  const el=document.createElement('div');
+  el.textContent=emoji;
+  el.style.cssText='position:absolute;font-size:22px;pointer-events:none;z-index:61;';
+  el.style.left=dinoWrap.style.left||'50%';
+  el.style.bottom='55%';
+  document.getElementById('app').appendChild(el);
+  el.animate([{transform:'translateY(0)',opacity:1},{transform:'translateY(-55px)',opacity:0}],{duration:1100,easing:'ease-out'});
+  setTimeout(()=>el.remove(),1100);
+}
+
+// ---- UI ----
+const STAGES=[{l:'Baby',ms:0},{l:'Juvenile',ms:1000*60*45},{l:'Adult',ms:1000*60*60*4}];
+function effectiveAge(){ return (Date.now()-state.birthTs)+(Math.min(state.careTicks,200)*1000*60*3); }
+function getStage(){let s=STAGES[0];for(const x of STAGES)if(effectiveAge()>=x.ms)s=x;return s;}
+function getProgress(){
+  const age=effectiveAge(),idx=STAGES.findIndex(x=>x===getStage());
+  if(idx>=STAGES.length-1)return 100;
+  return Math.min(100,Math.round(((age-STAGES[idx].ms)/(STAGES[idx+1].ms-STAGES[idx].ms))*100));
+}
+function updateUI(){
+  document.getElementById('iName').textContent=state.name;
+  document.getElementById('iStage').textContent=getStage().l;
+  document.getElementById('growthFill').style.width=getProgress()+'%';
+  const wl={clear:'☀️ Clear',cloudy:'⛅ Cloudy',rain:'🌧️ Rain',windy:'🌬️ Windy'};
+  document.getElementById('weatherLine').textContent=`${wl[weather]||'☀️'} · ${sp.biome}`;
+}
+
+// ---- AWAY REPORT ----
+const EVENTS=[
+  'dug a hole and then forgot why','fell asleep upside down for a while',
+  'had a staring contest with a bug and lost','practiced roaring at a cloud',
+  'found a good rock and guarded it','chased their own tail for two solid minutes',
+  'sniffed everything at least twice','watched the water very seriously for a long time',
+  'attempted to climb something and reconsidered','let out one giant yawn and fell right over',
+  'stared at the horizon like something big was coming','made their most intimidating face at a puddle',
+  'took an extremely long and unnecessary nap','stomped around for no particular reason'
+];
+function showAway(){
+  const ms=Date.now()-(state.lastSeenTs||Date.now());
+  if(ms<60000) return;
+  const mins=ms/60000, hrs=Math.floor(mins/60), rm=Math.floor(mins%60);
+  const timeStr=hrs>0?`${hrs}h ${rm}m`:`${Math.floor(mins)}m`;
+  const n=Math.min(5,Math.max(1,Math.floor(mins/18)+1));
+  const picks=[...EVENTS].sort(()=>Math.random()-.5).slice(0,n);
+  document.getElementById('awayTitle').textContent=`While you were away…`;
+  document.getElementById('awaySub').textContent=`You were gone for ${timeStr}.`;
+  document.getElementById('awayList').innerHTML=picks.map(e=>`<li>${state.name} ${e}.</li>`).join('');
+  document.getElementById('awayModal').classList.remove('hide');
+}
+</script>
+</body>
+</html>
