@@ -1,9 +1,10 @@
 const PLAYER_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false';
 const TRANSCRIPT_URL = 'https://www.youtube.com/youtubei/v1/get_transcript?prettyPrint=false';
+const NEXT_URL = 'https://www.youtube.com/youtubei/v1/next?prettyPrint=false';
 const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const WEB_VERSION = '2.20250312.04.00';
 
-// Caption URLs from the web client need a proof-of-origin token; these app clients return URLs that don't.
 const CLIENTS = [
   {
     name: 'android',
@@ -25,19 +26,88 @@ const CLIENTS = [
   },
 ];
 
+// Encode protobuf { 1: { 1: videoId } } for get_transcript params
+function makeTranscriptParams(videoId) {
+  const vid = Buffer.from(videoId, 'utf8');
+  const inner = Buffer.concat([Buffer.from([0x0a, vid.length]), vid]);
+  const outer = Buffer.concat([Buffer.from([0x0a, inner.length]), inner]);
+  return outer.toString('base64');
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
   const videoId = String(req.query.v || '').trim();
   if (!/^[\w-]{11}$/.test(videoId)) {
-    return res.status(400).json({ error: 'That doesn’t look like a YouTube video ID.' });
+    return res.status(400).json({ error: "That doesn't look like a YouTube video ID." });
   }
   const want = { lang: String(req.query.lang || ''), kind: String(req.query.kind || '') };
 
   const attempts = [];
   let title = '';
 
+  async function fetchTitle() {
+    if (title) return;
+    try {
+      const oe = await getJson(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}&format=json`
+      );
+      title = oe.title || '';
+    } catch {}
+  }
+
+  async function tryGetTranscript(params, clientVersion) {
+    const data = await postJson(
+      TRANSCRIPT_URL,
+      { context: { client: { clientName: 'WEB', clientVersion: clientVersion || WEB_VERSION, hl: 'en', gl: 'US' } }, params },
+      { 'User-Agent': BROWSER_UA }
+    );
+    return parsePanel(data);
+  }
+
+  // Strategy 1: /next endpoint → getTranscriptEndpoint.params → get_transcript
+  // The /next endpoint returns engagement panel JSON and may bypass the player bot-check.
+  const nextAttempt = { via: 'via-next' };
+  attempts.push(nextAttempt);
+  try {
+    const nextData = await postJson(
+      NEXT_URL,
+      { context: { client: { clientName: 'WEB', clientVersion: WEB_VERSION, hl: 'en', gl: 'US' } }, videoId },
+      { 'User-Agent': BROWSER_UA }
+    );
+    const ep = findAll(nextData, 'getTranscriptEndpoint').find(e => e?.params);
+    if (!ep) {
+      nextAttempt.reason = 'no transcript endpoint in /next response';
+    } else {
+      nextAttempt.status = 'OK';
+      const segs = await tryGetTranscript(ep.params);
+      if (segs.length) {
+        await fetchTitle();
+        return res.status(200).json({ title, via: 'via-next', tracks: [], active: null, segments: segs });
+      }
+      nextAttempt.reason = 'transcript came back empty';
+    }
+  } catch (e) {
+    nextAttempt.error = e.message;
+  }
+
+  // Strategy 2: construct protobuf params and call get_transcript directly (no player/page needed)
+  const directAttempt = { via: 'direct-params' };
+  attempts.push(directAttempt);
+  try {
+    const segs = await tryGetTranscript(makeTranscriptParams(videoId));
+    if (segs.length) {
+      directAttempt.status = 'OK';
+      await fetchTitle();
+      return res.status(200).json({ title, via: 'direct-params', tracks: [], active: null, segments: segs });
+    }
+    directAttempt.reason = 'transcript came back empty';
+  } catch (e) {
+    directAttempt.error = e.message;
+  }
+
+  // Strategies 3-5: ANDROID / IOS / TV-EMBED player clients
   for (const c of CLIENTS) {
     const attempt = { via: c.name };
     attempts.push(attempt);
@@ -66,7 +136,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Last resort: the "Show transcript" panel the YouTube website itself uses.
+  // Strategy 6: watch page HTML → ytInitialData transcript params → get_transcript
   const panel = { via: 'transcript-panel' };
   attempts.push(panel);
   try {
@@ -83,15 +153,10 @@ export default async function handler(req, res) {
     if (!params) {
       panel.reason ||= 'no transcript panel on the page';
     } else {
-      const clientVersion = /"INNERTUBE_CLIENT_VERSION":"([^"]+)"/.exec(html)?.[1] || '2.20250312.04.00';
-      const data = await postJson(
-        TRANSCRIPT_URL,
-        { context: { client: { clientName: 'WEB', clientVersion, hl: 'en', gl: 'US' } }, params },
-        { 'User-Agent': BROWSER_UA }
-      );
-      const segments = parsePanel(data);
-      if (segments.length) {
-        return res.status(200).json({ title, via: 'transcript-panel', tracks: [], active: null, segments });
+      const clientVersion = /"INNERTUBE_CLIENT_VERSION":"([^"]+)"/.exec(html)?.[1] || WEB_VERSION;
+      const segs = await tryGetTranscript(params, clientVersion);
+      if (segs.length) {
+        return res.status(200).json({ title, via: 'transcript-panel', tracks: [], active: null, segments: segs });
       }
       panel.reason = 'transcript panel came back empty';
     }
@@ -99,12 +164,13 @@ export default async function handler(req, res) {
     panel.error = e.message;
   }
 
+  await fetchTitle();
   const blocked = attempts.some(a => a.status === 'LOGIN_REQUIRED' || /bot|sign in/i.test(a.reason || ''));
   const playable = attempts.some(a => a.status === 'OK');
   let error;
-  if (blocked) error = 'YouTube is blocking this server (it asks cloud servers to “sign in to confirm you’re not a bot”).';
+  if (blocked) error = "YouTube is blocking this server (it asks cloud servers to \"sign in to confirm you're not a bot\").";
   else if (playable) error = 'This video has no captions or transcript.';
-  else error = 'YouTube didn’t return the video. ' + (attempts.find(a => a.reason)?.reason || attempts.find(a => a.error)?.error || '');
+  else error = "YouTube didn't return the video. " + (attempts.find(a => a.reason)?.reason || attempts.find(a => a.error)?.error || '');
 
   return res.status(blocked ? 503 : playable ? 404 : 502).json({ error, blocked, title, attempts });
 }
@@ -114,6 +180,15 @@ async function postJson(url, body, headers) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function getJson(url, headers = {}) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': BROWSER_UA, ...headers },
     signal: AbortSignal.timeout(8000),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -171,7 +246,6 @@ export function parsePanel(data) {
     .filter(s => s.text);
 }
 
-// Finds `name = {...}` in page HTML and parses the object, skipping braces inside strings.
 export function extractJson(src, name) {
   const m = new RegExp(name + '\\s*=\\s*\\{').exec(src);
   if (!m) return null;
