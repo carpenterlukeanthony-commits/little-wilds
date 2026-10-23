@@ -108,12 +108,21 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .status.loading { background: var(--accent-dim); color: var(--accent); }
 .status.err { background: var(--err-dim); color: var(--text); border: 1px solid color-mix(in srgb, var(--err) 35%, transparent); display: block; }
 .status.err .err-title { color: var(--err); font-weight: 600; }
-.status.err p + p, .status.err details { margin-top: 6px; }
+.status.err p + p, .status.err details, .status.err .setup-options { margin-top: 10px; }
 .status.err summary { cursor: pointer; color: var(--muted); }
 .status.err pre {
   margin-top: 6px; font: 12px/1.5 var(--font-mono); color: var(--muted);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.setup-options { display: flex; flex-direction: column; gap: 10px; }
+.setup-opt {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+.setup-opt strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.setup-opt ol { padding-left: 18px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+.setup-opt ol li { color: var(--text); }
+.setup-opt code { font: 12px var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
 .spinner {
   width: 14px; height: 14px; border: 2px solid currentColor;
   border-top-color: transparent; border-radius: 50%;
@@ -198,7 +207,25 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     </div>
     <div class="status err" id="statusErr" role="alert" hidden>
       <p class="err-title" id="errText"></p>
-      <p id="errBlocked" hidden>Your own browser isn’t blocked, so use the <a href="#youtube-button">YouTube button</a> below: open the video on YouTube and click it there. <a id="openVideo" href="https://www.youtube.com/" target="_blank" rel="noopener">Open this video on YouTube ↗</a></p>
+      <div class="setup-options" id="setupOptions" hidden>
+        <div class="setup-opt">
+          <strong>Option A — Works right now, no setup</strong>
+          <ol>
+            <li>Drag the <b>Get Transcript</b> button below onto your bookmarks bar.</li>
+            <li>Open the video on YouTube. <a id="openVideo" href="https://www.youtube.com/" target="_blank" rel="noopener">Open this video ↗</a></li>
+            <li>Click <b>Get Transcript</b> in the bookmarks bar — transcript opens over the video.</li>
+          </ol>
+        </div>
+        <div class="setup-opt">
+          <strong>Option B — Fix the paste box permanently (5 min, free)</strong>
+          <ol>
+            <li>Sign up free at <a href="https://supadata.ai" target="_blank" rel="noopener">supadata.ai</a> and copy your API key.</li>
+            <li>In your <a href="https://vercel.com/dashboard" target="_blank" rel="noopener">Vercel dashboard</a> → your project → Settings → Environment Variables.</li>
+            <li>Add variable: name <code>SUPADATA_API_KEY</code>, value: your key.</li>
+            <li>Redeploy (Deployments tab → the latest → ⋯ → Redeploy).</li>
+          </ol>
+        </div>
+      </div>
       <details id="errDetails" hidden>
         <summary>What YouTube said</summary>
         <pre id="errPre"></pre>
@@ -570,7 +597,7 @@ function setLoading(on, msg) {
 
 function showErr(data, videoId) {
   $('errText').textContent = data.error || 'Something went wrong.';
-  $('errBlocked').hidden = !data.blocked;
+  $('setupOptions').hidden = !data.needsSetup;
   if (videoId) $('openVideo').href = 'https://www.youtube.com/watch?v=' + videoId;
   var attempts = data.attempts || [];
   $('errDetails').hidden = !attempts.length;

@@ -42,36 +42,45 @@ export default async function handler(req, res) {
     } catch {}
   }
 
+  // Strategy 0: Supadata API — dedicated transcript service that handles YouTube bot-detection.
+  // Requires SUPADATA_API_KEY env var. One-time free setup at supadata.ai removes all maintenance.
+  if (process.env.SUPADATA_API_KEY) {
+    const sd = { via: 'supadata' };
+    attempts.push(sd);
+    try {
+      const params = new URLSearchParams({ videoId, ...(want.lang ? { lang: want.lang } : {}) });
+      const data = await getJson(
+        `https://api.supadata.ai/v1/youtube/transcript?${params}`,
+        { 'x-api-key': process.env.SUPADATA_API_KEY }
+      );
+      if (data.content?.length) {
+        sd.status = 'OK';
+        await fetchTitle();
+        const segments = data.content.map(s => ({ start: (s.offset || 0) / 1000, text: clean(s.text || '') })).filter(s => s.text);
+        const tracks = (data.availableLangs || []).map(l => ({ lang: l, kind: '', label: l }));
+        return res.status(200).json({ title, via: 'supadata', tracks, active: { lang: data.lang || want.lang, kind: '' }, segments });
+      }
+      sd.reason = 'no content returned';
+    } catch (e) {
+      sd.error = e.message;
+    }
+  }
+
+  // Strategies below all hit YouTube directly and are blocked by cloud IP bot-detection.
+  // They are kept as fallbacks but will fail on Vercel without SUPADATA_API_KEY.
+
   async function callGetTranscript(params, clientVersion, visitorData) {
-    const headers = {
-      'User-Agent': BROWSER_UA,
-      'Origin': 'https://www.youtube.com',
-      'Referer': `https://www.youtube.com/watch?v=${videoId}`,
-    };
+    const headers = { 'User-Agent': BROWSER_UA, 'Origin': 'https://www.youtube.com', 'Referer': `https://www.youtube.com/watch?v=${videoId}` };
     if (visitorData) headers['X-Goog-Visitor-Id'] = visitorData;
-    const context = {
-      client: {
-        clientName: 'WEB',
-        clientVersion: clientVersion || WEB_VERSION,
-        hl: 'en', gl: 'US',
-        ...(visitorData ? { visitorData } : {}),
-      },
-    };
+    const context = { client: { clientName: 'WEB', clientVersion: clientVersion || WEB_VERSION, hl: 'en', gl: 'US', ...(visitorData ? { visitorData } : {}) } };
     const data = await postJson(TRANSCRIPT_URL, { context, params }, headers);
     return parsePanel(data);
   }
 
-  // Strategy 1: /next endpoint → getTranscriptEndpoint.params → get_transcript
-  // /next is the engagement-panels endpoint (not the player) and is not cloud-IP restricted.
-  // We extract visitorData from its response to authenticate the follow-up get_transcript call.
   const nextAttempt = { via: 'via-next' };
   attempts.push(nextAttempt);
   try {
-    const nextData = await postJson(
-      NEXT_URL,
-      { context: { client: { clientName: 'WEB', clientVersion: WEB_VERSION, hl: 'en', gl: 'US' } }, videoId },
-      { 'User-Agent': BROWSER_UA, 'Origin': 'https://www.youtube.com' }
-    );
+    const nextData = await postJson(NEXT_URL, { context: { client: { clientName: 'WEB', clientVersion: WEB_VERSION, hl: 'en', gl: 'US' } }, videoId }, { 'User-Agent': BROWSER_UA, 'Origin': 'https://www.youtube.com' });
     const visitorData = nextData?.responseContext?.visitorData || '';
     const ep = findAll(nextData, 'getTranscriptEndpoint').find(e => e?.params);
     if (!ep) {
@@ -89,7 +98,6 @@ export default async function handler(req, res) {
     nextAttempt.error = e.message;
   }
 
-  // Strategies 2-3: ANDROID / IOS player clients (likely blocked on cloud IPs)
   for (const c of CLIENTS) {
     const attempt = { via: c.name };
     attempts.push(attempt);
@@ -150,12 +158,13 @@ export default async function handler(req, res) {
   await fetchTitle();
   const blocked = attempts.some(a => a.status === 'LOGIN_REQUIRED' || /bot|sign in/i.test(a.reason || ''));
   const playable = attempts.some(a => a.status === 'OK');
+  const noKey = !process.env.SUPADATA_API_KEY;
   let error;
-  if (blocked) error = "YouTube is blocking this server (it asks cloud servers to \"sign in to confirm you're not a bot\").";
+  if (blocked || noKey) error = "YouTube blocks requests from cloud servers. Add a free Supadata API key to fix this permanently — see the setup guide below.";
   else if (playable) error = 'This video has no captions or transcript.';
   else error = "YouTube didn't return the video. " + (attempts.find(a => a.reason)?.reason || attempts.find(a => a.error)?.error || '');
 
-  return res.status(blocked ? 503 : playable ? 404 : 502).json({ error, blocked, title, attempts });
+  return res.status(blocked ? 503 : playable ? 404 : 502).json({ error, blocked, needsSetup: blocked || noKey, title, attempts });
 }
 
 async function postJson(url, body, headers) {
