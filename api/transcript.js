@@ -16,23 +16,8 @@ const CLIENTS = [
     ua: 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
     context: { client: { clientName: 'IOS', clientVersion: '20.10.4', deviceMake: 'Apple', deviceModel: 'iPhone16,2', osName: 'iPhone', osVersion: '18.3.2.22D82', hl: 'en', gl: 'US' } },
   },
-  {
-    name: 'tv-embed',
-    ua: BROWSER_UA,
-    context: {
-      client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0', hl: 'en', gl: 'US' },
-      thirdParty: { embedUrl: 'https://www.youtube.com/' },
-    },
-  },
 ];
 
-// Encode protobuf { 1: { 1: videoId } } for get_transcript params
-function makeTranscriptParams(videoId) {
-  const vid = Buffer.from(videoId, 'utf8');
-  const inner = Buffer.concat([Buffer.from([0x0a, vid.length]), vid]);
-  const outer = Buffer.concat([Buffer.from([0x0a, inner.length]), inner]);
-  return outer.toString('base64');
-}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,31 +42,43 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  async function tryGetTranscript(params, clientVersion) {
-    const data = await postJson(
-      TRANSCRIPT_URL,
-      { context: { client: { clientName: 'WEB', clientVersion: clientVersion || WEB_VERSION, hl: 'en', gl: 'US' } }, params },
-      { 'User-Agent': BROWSER_UA }
-    );
+  async function callGetTranscript(params, clientVersion, visitorData) {
+    const headers = {
+      'User-Agent': BROWSER_UA,
+      'Origin': 'https://www.youtube.com',
+      'Referer': `https://www.youtube.com/watch?v=${videoId}`,
+    };
+    if (visitorData) headers['X-Goog-Visitor-Id'] = visitorData;
+    const context = {
+      client: {
+        clientName: 'WEB',
+        clientVersion: clientVersion || WEB_VERSION,
+        hl: 'en', gl: 'US',
+        ...(visitorData ? { visitorData } : {}),
+      },
+    };
+    const data = await postJson(TRANSCRIPT_URL, { context, params }, headers);
     return parsePanel(data);
   }
 
   // Strategy 1: /next endpoint → getTranscriptEndpoint.params → get_transcript
-  // The /next endpoint returns engagement panel JSON and may bypass the player bot-check.
+  // /next is the engagement-panels endpoint (not the player) and is not cloud-IP restricted.
+  // We extract visitorData from its response to authenticate the follow-up get_transcript call.
   const nextAttempt = { via: 'via-next' };
   attempts.push(nextAttempt);
   try {
     const nextData = await postJson(
       NEXT_URL,
       { context: { client: { clientName: 'WEB', clientVersion: WEB_VERSION, hl: 'en', gl: 'US' } }, videoId },
-      { 'User-Agent': BROWSER_UA }
+      { 'User-Agent': BROWSER_UA, 'Origin': 'https://www.youtube.com' }
     );
+    const visitorData = nextData?.responseContext?.visitorData || '';
     const ep = findAll(nextData, 'getTranscriptEndpoint').find(e => e?.params);
     if (!ep) {
       nextAttempt.reason = 'no transcript endpoint in /next response';
     } else {
       nextAttempt.status = 'OK';
-      const segs = await tryGetTranscript(ep.params);
+      const segs = await callGetTranscript(ep.params, WEB_VERSION, visitorData);
       if (segs.length) {
         await fetchTitle();
         return res.status(200).json({ title, via: 'via-next', tracks: [], active: null, segments: segs });
@@ -92,22 +89,7 @@ export default async function handler(req, res) {
     nextAttempt.error = e.message;
   }
 
-  // Strategy 2: construct protobuf params and call get_transcript directly (no player/page needed)
-  const directAttempt = { via: 'direct-params' };
-  attempts.push(directAttempt);
-  try {
-    const segs = await tryGetTranscript(makeTranscriptParams(videoId));
-    if (segs.length) {
-      directAttempt.status = 'OK';
-      await fetchTitle();
-      return res.status(200).json({ title, via: 'direct-params', tracks: [], active: null, segments: segs });
-    }
-    directAttempt.reason = 'transcript came back empty';
-  } catch (e) {
-    directAttempt.error = e.message;
-  }
-
-  // Strategies 3-5: ANDROID / IOS / TV-EMBED player clients
+  // Strategies 2-3: ANDROID / IOS player clients (likely blocked on cloud IPs)
   for (const c of CLIENTS) {
     const attempt = { via: c.name };
     attempts.push(attempt);
@@ -154,7 +136,8 @@ export default async function handler(req, res) {
       panel.reason ||= 'no transcript panel on the page';
     } else {
       const clientVersion = /"INNERTUBE_CLIENT_VERSION":"([^"]+)"/.exec(html)?.[1] || WEB_VERSION;
-      const segs = await tryGetTranscript(params, clientVersion);
+      const visitorData = /"VISITOR_DATA":"([^"]+)"/.exec(html)?.[1] || '';
+      const segs = await callGetTranscript(params, clientVersion, visitorData);
       if (segs.length) {
         return res.status(200).json({ title, via: 'transcript-panel', tracks: [], active: null, segments: segs });
       }
