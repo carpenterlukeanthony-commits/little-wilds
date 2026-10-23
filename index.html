@@ -4,25 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Transcript</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
+/* Layout: one centered column; paste tool on top, YouTube button install below */
 :root {
   --bg: #f4f5fb;
   --surface: #ffffff;
   --surface2: #eef0f8;
   --border: #dde0f0;
   --text: #1a1c2e;
-  --muted: #6b7491;
+  --muted: #5f6886;
   --accent: #3556f5;
   --accent-dim: #3556f514;
   --accent-hover: #2441d6;
   --err: #c8313a;
-  --err-dim: #c8313a14;
+  --err-dim: #c8313a12;
   --ok: #1a9e5e;
   --ts-text: #5560a0;
   --r: 10px;
   --r-sm: 7px;
   --shadow: 0 2px 12px rgba(30,40,100,.07);
+  --font-display: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;
+  --font-ui: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,11 +35,11 @@
     --surface2: #1a1b2b;
     --border: #25273c;
     --text: #dde0f5;
-    --muted: #7079a8;
-    --accent: #5b78ff;
-    --accent-dim: #5b78ff18;
-    --accent-hover: #7090ff;
-    --err: #f0565e;
+    --muted: #8a92b8;
+    --accent: #6b85ff;
+    --accent-dim: #6b85ff1c;
+    --accent-hover: #8299ff;
+    --err: #f0707a;
     --err-dim: #f0565e18;
     --ok: #34d68e;
     --ts-text: #8090c8;
@@ -44,206 +48,396 @@
   }
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.6;
-  padding: 0 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
   min-height: 100vh;
 }
-.page { max-width: 780px; margin: 0 auto; padding: 48px 0 72px; }
-.header { margin-bottom: 40px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.page { max-width: 780px; margin: 0 auto; padding-block: 48px 72px; display: flex; flex-direction: column; gap: 28px; }
 .header h1 {
-  font-family: 'Bricolage Grotesque', sans-serif;
+  font-family: var(--font-display);
   font-size: 2rem; font-weight: 700;
   letter-spacing: -.025em; line-height: 1.1; margin-bottom: 6px;
+  text-wrap: balance;
 }
 .header p { color: var(--muted); font-size: 14px; }
-.input-card {
+
+.card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); margin-bottom: 28px;
+  border-radius: var(--r); padding: 20px; box-shadow: var(--shadow);
 }
 .input-row { display: flex; gap: 10px; align-items: stretch; }
 .url-input {
   flex: 1; min-width: 0;
   background: var(--surface2); border: 1.5px solid var(--border);
   border-radius: var(--r-sm); color: var(--text);
-  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  font: 14px var(--font-ui);
   padding: 10px 14px; transition: border-color .15s; outline: none;
 }
 .url-input::placeholder { color: var(--muted); }
 .url-input:focus { border-color: var(--accent); }
 .url-input.error { border-color: var(--err); }
+
 .btn {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   background: var(--accent); color: #fff; border: none;
-  border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 600; padding: 10px 20px;
-  cursor: pointer; white-space: nowrap; transition: background .15s, opacity .15s;
+  border-radius: var(--r-sm); font: 600 14px var(--font-ui);
+  padding: 10px 20px; cursor: pointer; white-space: nowrap;
+  transition: background .15s, opacity .15s;
 }
 .btn:hover { background: var(--accent-hover); }
-.btn:active { opacity: .85; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-ghost {
-  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
-}
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--border); }
 .btn-sm { padding: 7px 13px; font-size: 13px; }
+
 .status {
   margin-top: 14px; padding: 10px 14px; border-radius: var(--r-sm);
   font-size: 13px; display: flex; align-items: center; gap: 8px;
 }
-.status.hidden { display: none; }
 .status.loading { background: var(--accent-dim); color: var(--accent); }
-.status.err { background: var(--err-dim); color: var(--err); }
+.status.err { background: var(--err-dim); color: var(--text); border: 1px solid color-mix(in srgb, var(--err) 35%, transparent); display: block; }
+.status.err .err-title { color: var(--err); font-weight: 600; }
+.status.err p + p, .status.err details { margin-top: 6px; }
+.status.err summary { cursor: pointer; color: var(--muted); }
+.status.err pre {
+  margin-top: 6px; font: 12px/1.5 var(--font-mono); color: var(--muted);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .spinner {
   width: 14px; height: 14px; border: 2px solid currentColor;
   border-top-color: transparent; border-radius: 50%;
   animation: spin .7s linear infinite; flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.results.hidden { display: none; }
-.results-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
-}
-.video-meta { min-width: 0; }
+
+.results { display: flex; flex-direction: column; gap: 14px; }
+.results-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.video-meta { min-width: 0; flex: 1 1 260px; }
 .video-title {
-  font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.05rem;
-  font-weight: 600; letter-spacing: -.01em; word-break: break-word; margin-bottom: 3px;
+  font-family: var(--font-display); font-size: 1.1rem; font-weight: 600;
+  letter-spacing: -.01em; overflow-wrap: anywhere; margin-bottom: 3px;
 }
-.video-stats { font-size: 12px; color: var(--muted); }
-.actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
-.track-row {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
-}
-.track-row.hidden { display: none; }
-.track-row label { font-size: 13px; color: var(--muted); }
+.video-stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.controls { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.controls label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.controls input { accent-color: var(--accent); }
 .track-select {
   background: var(--surface2); border: 1.5px solid var(--border);
   border-radius: var(--r-sm); color: var(--text);
-  font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 5px 10px; cursor: pointer; outline: none;
+  font: 13px var(--font-ui); padding: 5px 10px; cursor: pointer;
 }
-.track-select:focus { border-color: var(--accent); }
-.toggle-row {
-  display: flex; align-items: center; gap: 8px; font-size: 13px;
-  color: var(--muted); cursor: pointer; user-select: none; margin-bottom: 12px;
-}
-.toggle-row input { accent-color: var(--accent); cursor: pointer; }
-.transcript-panel {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden;
-}
+.transcript-panel { padding: 0; overflow: hidden; }
 .transcript-list { max-height: 560px; overflow-y: auto; padding: 4px 0; }
-.transcript-list::-webkit-scrollbar { width: 6px; }
-.transcript-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .segment {
   display: grid; grid-template-columns: 64px 1fr;
-  padding: 7px 16px; border-bottom: 1px solid var(--border); transition: background .1s;
+  padding: 7px 16px; border-bottom: 1px solid var(--border);
 }
 .segment:last-child { border-bottom: none; }
 .segment:hover { background: var(--accent-dim); }
-.ts {
-  font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  color: var(--ts-text); padding-top: 2px; user-select: none;
-}
-.seg-text { font-size: 14px; line-height: 1.65; word-break: break-word; }
+.ts { font: 11px var(--font-mono); color: var(--ts-text); padding-top: 3px; user-select: none; font-variant-numeric: tabular-nums; }
+.seg-text { font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; min-width: 0; }
 .no-ts .segment { grid-template-columns: 1fr; }
 .no-ts .ts { display: none; }
-.copy-ok { color: var(--ok) !important; }
-@media (max-width: 520px) {
-  .page { padding: 28px 0 48px; }
-  .header h1 { font-size: 1.5rem; }
-  .input-row { flex-direction: column; }
-  .results-header { flex-direction: column; }
+
+.bm h2 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em; margin-bottom: 4px; }
+.bm > p { color: var(--muted); font-size: 14px; max-width: 62ch; }
+.bm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-block: 16px; }
+.bm-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px 9px 12px; border-radius: 999px;
+  background: var(--accent); color: #fff; text-decoration: none;
+  font: 600 14px var(--font-ui); cursor: grab; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
 }
+.bm-pill:active { cursor: grabbing; }
+.bm-pill svg { opacity: .8; }
+.bm-hint { font-size: 13px; color: var(--muted); }
+.bm-hint.flash { color: var(--accent); font-weight: 600; }
+.steps { padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; max-width: 62ch; }
+.steps kbd {
+  font: 12px var(--font-mono); background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0 5px;
+}
+.phone { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: 62ch; }
+
+@media (max-width: 520px) {
+  .page { padding-block: 28px 48px; }
+  .header h1 { font-size: 1.6rem; }
+  .input-row { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
 </style>
 </head>
 <body>
-<div class="page">
+<main class="page">
   <header class="header">
     <h1>YT Transcript</h1>
-    <p>Paste any YouTube URL to extract the full transcript</p>
+    <p>Paste a YouTube link to get the full transcript.</p>
   </header>
 
-  <div class="input-card">
-    <div class="input-row">
-      <input class="url-input" id="urlInput" type="url"
+  <section class="card">
+    <form class="input-row" id="form">
+      <input class="url-input" id="urlInput" type="text" inputmode="url"
         placeholder="https://youtube.com/watch?v=… or youtu.be/…"
-        autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="btn" id="fetchBtn" onclick="handleFetch()">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v6m0 0 3-3M8 8 5 5M2 10.5c0 1.93 1.57 3.5 3.5 3.5h5A3.5 3.5 0 0 0 14 10.5v-.17"
-            stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Get Transcript
-      </button>
+        aria-label="YouTube link" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn" id="fetchBtn" type="submit">Get transcript</button>
+    </form>
+    <div class="status loading" id="statusLoading" hidden>
+      <span class="spinner"></span><span id="statusText">Fetching transcript…</span>
     </div>
-    <div class="status loading hidden" id="statusLoading">
-      <span class="spinner"></span>
-      <span id="statusText">Loading…</span>
+    <div class="status err" id="statusErr" role="alert" hidden>
+      <p class="err-title" id="errText"></p>
+      <p id="errBlocked" hidden>Your own browser isn’t blocked, so use the <a href="#youtube-button">YouTube button</a> below: open the video on YouTube and click it there. <a id="openVideo" href="https://www.youtube.com/" target="_blank" rel="noopener">Open this video on YouTube ↗</a></p>
+      <details id="errDetails" hidden>
+        <summary>What YouTube said</summary>
+        <pre id="errPre"></pre>
+      </details>
     </div>
-    <div class="status err hidden" id="statusErr">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
-        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-      </svg>
-      <span id="errText"></span>
-    </div>
-  </div>
+  </section>
 
-  <div class="results hidden" id="results">
+  <section class="results" id="results" hidden>
     <div class="results-header">
       <div class="video-meta">
         <div class="video-title" id="videoTitle"></div>
         <div class="video-stats" id="videoStats"></div>
       </div>
       <div class="actions">
-        <button class="btn btn-ghost btn-sm" id="copyBtn" onclick="copyTranscript(false)">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-            <rect x="5.5" y="5.5" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v2.5"
-              stroke="currentColor" stroke-width="1.5"/>
-          </svg>
-          Copy text
-        </button>
-        <button class="btn btn-ghost btn-sm" id="copyTsBtn" onclick="copyTranscript(true)">
-          Copy with timestamps
-        </button>
+        <button class="btn btn-ghost btn-sm" id="copyBtn" type="button">Copy text</button>
+        <button class="btn btn-ghost btn-sm" id="copyTsBtn" type="button">Copy with timestamps</button>
       </div>
     </div>
-
-    <div class="track-row hidden" id="trackRow">
-      <label for="trackSelect">Track:</label>
-      <select class="track-select" id="trackSelect" onchange="switchTrack()"></select>
+    <div class="controls">
+      <label><input type="checkbox" id="tsToggle" checked> Show timestamps</label>
+      <label id="trackRow" hidden>Language <select class="track-select" id="trackSelect"></select></label>
     </div>
-
-    <label class="toggle-row">
-      <input type="checkbox" id="tsToggle" checked onchange="toggleTimestamps()">
-      Show timestamps
-    </label>
-
-    <div class="transcript-panel">
+    <div class="card transcript-panel">
       <div class="transcript-list" id="transcriptList"></div>
     </div>
-  </div>
-</div>
+  </section>
+
+  <section class="card bm" id="youtube-button">
+    <h2>YouTube button</h2>
+    <p>Puts a Get Transcript button in your bookmarks. Click it on any YouTube video and the transcript opens over the video, ready to copy. It runs in your own browser, so YouTube can’t block it the way it blocks servers.</p>
+    <div class="bm-row">
+      <a class="bm-pill" id="bmLink" href="#youtube-button" draggable="true">
+        <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><g fill="currentColor"><circle cx="2" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="13" r="1.5"/><circle cx="8" cy="13" r="1.5"/></g></svg>
+        Get Transcript
+      </a>
+      <span class="bm-hint" id="bmHint">Drag this onto your bookmarks bar</span>
+    </div>
+    <ol class="steps">
+      <li>Drag <b>Get Transcript</b> onto your bookmarks bar. If you can’t see the bar, press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> on a Mac).</li>
+      <li>Open any YouTube video.</li>
+      <li>Click <b>Get Transcript</b> in the bookmarks bar.</li>
+    </ol>
+    <div class="phone">
+      <span>On a phone: copy the button code, bookmark any page, then edit that bookmark and paste the code as its address. Open the video in your browser rather than the YouTube app, then open the bookmark. On Android Chrome, type the bookmark’s name in the address bar and tap it.</span>
+      <button class="btn btn-ghost btn-sm" id="copyBm" type="button">Copy button code</button>
+    </div>
+  </section>
+</main>
+
+<script type="text/plain" id="bookmarkletSrc">
+void (async function () {
+  var vid, title = '', segs = null, errors = [], htmlP = null;
+  var dark = document.documentElement.hasAttribute('dark');
+  var C = dark
+    ? { bg: '#1f1f1f', fg: '#f1f1f1', muted: '#aaaaaa', line: '#3f3f3f', field: '#121212', btn: '#2e2e2e', err: '#ff8a80' }
+    : { bg: '#ffffff', fg: '#0f0f0f', muted: '#606060', line: '#e0e0e0', field: '#f6f6f6', btn: '#f0f0f0', err: '#c5221f' };
+  var old = document.getElementById('ytx-panel');
+  if (old) old.remove();
+  function el(tag, css, text) {
+    var e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  var btnCss = 'appearance:none;border:1px solid ' + C.line + ';background:' + C.btn + ';color:' + C.fg + ';border-radius:18px;padding:7px 14px;font:500 13px Roboto,Arial,sans-serif;cursor:pointer;';
+  var panel = el('div', 'position:fixed;top:72px;right:16px;z-index:2147483647;width:min(460px,calc(100vw - 32px));max-height:calc(100vh - 96px);box-sizing:border-box;display:flex;flex-direction:column;gap:10px;padding:16px;background:' + C.bg + ';color:' + C.fg + ';border:1px solid ' + C.line + ';border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);font:14px/1.45 Roboto,Arial,sans-serif;text-align:left;');
+  panel.id = 'ytx-panel';
+  var head = el('div', 'display:flex;align-items:flex-start;gap:12px;');
+  var titleEl = el('div', 'flex:1;min-width:0;font-weight:600;font-size:15px;overflow-wrap:anywhere;', 'Transcript');
+  var closeBtn = el('button', btnCss + 'padding:4px 12px;', 'Close');
+  closeBtn.addEventListener('click', function () { panel.remove(); });
+  head.append(titleEl, closeBtn);
+  var status = el('div', 'color:' + C.muted + ';font-size:13px;', 'Loading transcript…');
+  var actions = el('div', 'display:none;gap:8px;flex-wrap:wrap;');
+  var copyText = el('button', btnCss, 'Copy text');
+  var copyStamped = el('button', btnCss, 'Copy with timestamps');
+  actions.append(copyText, copyStamped);
+  var box = el('textarea', 'display:none;width:100%;height:50vh;min-height:200px;resize:vertical;box-sizing:border-box;padding:10px 12px;border:1px solid ' + C.line + ';border-radius:8px;background:' + C.field + ';color:' + C.fg + ';font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;');
+  box.readOnly = true;
+  panel.append(head, status, actions, box);
+  document.body.appendChild(panel);
+  function fail(msg) { status.textContent = msg; status.style.color = C.err; }
+
+  function clean(s) { return String(s).replace(/\s+/g, ' ').trim(); }
+  function decode(s) {
+    for (var k = 0; k < 2; k++) {
+      s = s.replace(/&#x([0-9a-f]+);/gi, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+        .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(+d); })
+        .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    }
+    return s;
+  }
+  function parseCaptions(text) {
+    text = (text || '').trim();
+    if (!text) return [];
+    if (text.charAt(0) === '{') {
+      return (JSON.parse(text).events || []).filter(function (e) { return e.segs; }).map(function (e) {
+        return { start: (e.tStartMs || 0) / 1000, text: clean(e.segs.map(function (x) { return x.utf8 || ''; }).join('')) };
+      }).filter(function (s) { return s.text; });
+    }
+    var out = [], re = /<(text|p)\b([^>]*)>([\s\S]*?)<\/\1>/g, m;
+    while ((m = re.exec(text))) {
+      var a = /\bstart="([\d.]+)"/.exec(m[2]), b = /\bt="(\d+)"/.exec(m[2]);
+      var line = clean(decode(m[3].replace(/<[^>]+>/g, '')));
+      if (line) out.push({ start: a ? parseFloat(a[1]) : b ? parseInt(b[1], 10) / 1000 : 0, text: line });
+    }
+    return out;
+  }
+  function pick(ts) {
+    function f(fn) { return ts.filter(fn)[0]; }
+    return f(function (t) { return /^en/.test(t.languageCode || '') && t.kind !== 'asr'; })
+      || f(function (t) { return /^en/.test(t.languageCode || ''); })
+      || f(function (t) { return t.kind !== 'asr'; })
+      || ts[0];
+  }
+  function findAll(node, key, out) {
+    out = out || [];
+    if (node && typeof node === 'object') {
+      if (!Array.isArray(node) && Object.prototype.hasOwnProperty.call(node, key)) out.push(node[key]);
+      for (var k in node) findAll(node[k], key, out);
+    }
+    return out;
+  }
+  function extractJson(src, name) {
+    var m = new RegExp(name + '\\s*=\\s*\\{').exec(src);
+    if (!m) return null;
+    var st = m.index + m[0].length - 1, depth = 0, inStr = false, esc = false;
+    for (var i = st; i < src.length; i++) {
+      var ch = src[i];
+      if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; }
+      else if (ch === '"') inStr = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) { try { return JSON.parse(src.slice(st, i + 1)); } catch (e) { return null; } }
+    }
+    return null;
+  }
+
+  if (!/(^|\.)youtube\.com$/.test(location.hostname)) { fail('Open a YouTube video first, then click this bookmark again.'); return; }
+  var u = new URL(location.href);
+  vid = u.searchParams.get('v') || (/\/(?:shorts|live|embed)\/([\w-]{11})/.exec(u.pathname) || [])[1];
+  if (!vid) { fail('Open a video page first, then click this bookmark again.'); return; }
+
+  function getHtml() {
+    if (!htmlP) htmlP = fetch('/watch?v=' + vid + '&hl=en').then(function (r) { if (!r.ok) throw new Error('page HTTP ' + r.status); return r.text(); });
+    return htmlP;
+  }
+  async function fromTracks(tracks) {
+    if (!tracks || !tracks.length) throw new Error('no caption tracks');
+    var t = pick(tracks);
+    var path = t.baseUrl.replace(/^https?:\/\/[^\/]+/, '').replace(/&fmt=[^&]*/g, '') + '&fmt=json3';
+    var r = await fetch(path, { credentials: 'omit' });
+    if (!r.ok) throw new Error('captions HTTP ' + r.status);
+    var out = parseCaptions(await r.text());
+    if (!out.length) throw new Error('caption file came back empty');
+    return out;
+  }
+  async function viaApp() {
+    var r = await fetch('/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId: vid, context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 30, osName: 'Android', osVersion: '11', hl: 'en', gl: 'US' } } })
+    });
+    if (!r.ok) throw new Error('player HTTP ' + r.status);
+    var pr = await r.json();
+    if (pr.videoDetails && pr.videoDetails.title) title = pr.videoDetails.title;
+    var tracks = pr.captions && pr.captions.playerCaptionsTracklistRenderer && pr.captions.playerCaptionsTracklistRenderer.captionTracks;
+    if (!tracks || !tracks.length) throw new Error((pr.playabilityStatus && pr.playabilityStatus.reason) || 'no caption tracks');
+    return fromTracks(tracks);
+  }
+  async function viaPanel() {
+    var page = await getHtml();
+    var ep = findAll(extractJson(page, 'ytInitialData'), 'getTranscriptEndpoint').filter(function (e) { return e && e.params; })[0];
+    if (!ep) throw new Error('no transcript panel');
+    var cfg = window.ytcfg && typeof window.ytcfg.get === 'function' ? window.ytcfg : null;
+    var ctx = cfg && cfg.get('INNERTUBE_CONTEXT');
+    if (!ctx) ctx = { client: { clientName: 'WEB', clientVersion: (/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/.exec(page) || [])[1] || '2.20250312.04.00', hl: 'en' } };
+    var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: ctx, params: ep.params }) };
+    var r = await fetch('/youtubei/v1/get_transcript?prettyPrint=false', opts);
+    if (!r.ok) { opts.credentials = 'omit'; r = await fetch('/youtubei/v1/get_transcript?prettyPrint=false', opts); }
+    if (!r.ok) throw new Error('transcript panel HTTP ' + r.status);
+    var out = findAll(await r.json(), 'transcriptSegmentRenderer').map(function (s) {
+      var sn = s.snippet || {};
+      return { start: parseInt(s.startMs || '0', 10) / 1000, text: clean(sn.runs ? sn.runs.map(function (x) { return x.text || ''; }).join('') : sn.simpleText || '') };
+    }).filter(function (s) { return s.text; });
+    if (!out.length) throw new Error('transcript panel came back empty');
+    return out;
+  }
+  async function viaPage() {
+    var pr = extractJson(await getHtml(), 'ytInitialPlayerResponse');
+    if (!title && pr && pr.videoDetails && pr.videoDetails.title) title = pr.videoDetails.title;
+    return fromTracks(pr && pr.captions && pr.captions.playerCaptionsTracklistRenderer && pr.captions.playerCaptionsTracklistRenderer.captionTracks);
+  }
+
+  var ways = [['app', viaApp], ['panel', viaPanel], ['page', viaPage]];
+  for (var w = 0; w < ways.length && !segs; w++) {
+    try { segs = await ways[w][1](); } catch (e) { errors.push(ways[w][0] + ': ' + e.message); }
+  }
+  if (!segs) { fail('Couldn’t get a transcript for this video. ' + errors.join(' · ')); return; }
+
+  function fmt(t) {
+    t = Math.floor(t);
+    var h = Math.floor(t / 3600), mi = Math.floor(t % 3600 / 60), s = t % 60;
+    return (h ? h + ':' + String(mi).padStart(2, '0') : String(mi)) + ':' + String(s).padStart(2, '0');
+  }
+  var plain = clean(segs.map(function (s) { return s.text; }).join(' '));
+  var stamped = segs.map(function (s) { return '[' + fmt(s.start) + '] ' + s.text; }).join('\n');
+  titleEl.textContent = title || document.title.replace(/^\(\d+\)\s*/, '').replace(/\s*-\s*YouTube$/, '') || 'Transcript';
+  status.textContent = segs.length.toLocaleString() + (segs.length === 1 ? ' line · ' : ' lines · ') + plain.split(' ').length.toLocaleString() + ' words';
+  box.value = stamped;
+  box.style.display = 'block';
+  actions.style.display = 'flex';
+  function copy(text, btn, label) {
+    function done(ok) { btn.textContent = ok ? 'Copied' : 'Selected, press Ctrl+C'; setTimeout(function () { btn.textContent = label; }, 1800); }
+    function fallback() {
+      box.value = text; box.focus(); box.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    else fallback();
+  }
+  copyText.addEventListener('click', function () { copy(plain, copyText, 'Copy text'); });
+  copyStamped.addEventListener('click', function () { copy(stamped, copyStamped, 'Copy with timestamps'); });
+})();
+</script>
 
 <script>
-let currentSegments = [];
-let allTracks = [];
-let currentVideoId = '';
+var currentSegments = [];
+var currentVideoId = '';
+
+function $(id) { return document.getElementById(id); }
 
 function extractVideoId(input) {
   input = input.trim();
   var patterns = [
-    /[?&]v=([a-zA-Z0-9_-]{11})/,
-    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-    /^([a-zA-Z0-9_-]{11})$/
+    /[?&]v=([\w-]{11})/,
+    /youtu\.be\/([\w-]{11})/,
+    /youtube\.com\/(?:embed|shorts|live)\/([\w-]{11})/,
+    /^([\w-]{11})$/
   ];
   for (var i = 0; i < patterns.length; i++) {
     var m = input.match(patterns[i]);
@@ -254,123 +448,105 @@ function extractVideoId(input) {
 
 function fmt(secs) {
   var s = Math.floor(secs);
-  var h = Math.floor(s / 3600);
-  var m = Math.floor((s % 3600) / 60);
-  var sec = s % 60;
-  if (h > 0) return h + ':' + pad(m) + ':' + pad(sec);
-  return m + ':' + pad(sec);
-}
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
-function eventsToSegments(events) {
-  return (events || [])
-    .filter(function(e) { return e.segs; })
-    .map(function(e) {
-      return {
-        start: (e.tStartMs || 0) / 1000,
-        text: e.segs.map(function(s) { return s.utf8 || ''; }).join('').trim().replace(/\n/g, ' ')
-      };
-    })
-    .filter(function(e) { return e.text; });
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return h > 0 ? h + ':' + pad(m) + ':' + pad(sec) : m + ':' + pad(sec);
 }
 
-async function callApi(videoId, trackIndex) {
-  var url = '/api/transcript?v=' + videoId;
-  if (trackIndex != null) url += '&track=' + trackIndex;
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function loadTranscript(videoId, lang, kind) {
+  var url = '/api/transcript?v=' + encodeURIComponent(videoId);
+  if (lang) url += '&lang=' + encodeURIComponent(lang) + '&kind=' + encodeURIComponent(kind || '');
   var res = await fetch(url);
-  var data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API error ' + res.status);
+  var data;
+  try { data = await res.json(); } catch (e) { data = { error: 'The server sent an unexpected response (HTTP ' + res.status + ').' }; }
+  if (!res.ok || data.error) {
+    var err = new Error(data.error || ('Request failed (HTTP ' + res.status + ').'));
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
 async function handleFetch() {
-  var input = document.getElementById('urlInput');
+  var input = $('urlInput');
   var videoId = extractVideoId(input.value);
   if (!videoId) {
     input.classList.add('error');
-    showErr('Could not find a YouTube video ID in that URL.');
+    showErr({ error: 'Couldn’t find a YouTube video in that link. Paste a link like youtube.com/watch?v=… or youtu.be/….' });
     return;
   }
   input.classList.remove('error');
   currentVideoId = videoId;
   hideErr();
-  document.getElementById('results').classList.add('hidden');
+  $('results').hidden = true;
   setLoading(true, 'Fetching transcript…');
-
   try {
-    var data = await callApi(videoId);
-    allTracks = data.tracks;
-    currentSegments = eventsToSegments(data.events);
-    renderResults(videoId, data.title, currentSegments, data.tracks, data.activeIndex);
-    setLoading(false);
+    var data = await loadTranscript(videoId);
+    renderResults(videoId, data);
   } catch (e) {
+    showErr(Object.assign({ error: e.message }, e.data || {}), videoId);
+  } finally {
     setLoading(false);
-    showErr(e.message);
   }
 }
 
 async function switchTrack() {
-  var sel = document.getElementById('trackSelect');
-  var idx = parseInt(sel.value, 10);
-  setLoading(true, 'Switching track…');
+  var parts = $('trackSelect').value.split('|');
+  setLoading(true, 'Switching language…');
+  hideErr();
   try {
-    var data = await callApi(currentVideoId, idx);
-    currentSegments = eventsToSegments(data.events);
+    var data = await loadTranscript(currentVideoId, parts[0], parts[1]);
+    currentSegments = data.segments;
     renderSegments(currentSegments);
     updateStats(currentSegments);
-    setLoading(false);
   } catch (e) {
+    showErr(Object.assign({ error: 'Couldn’t load that language: ' + e.message }, e.data || {}), currentVideoId);
+  } finally {
     setLoading(false);
-    showErr('Could not load that track: ' + e.message);
   }
 }
 
-function renderResults(videoId, title, segments, tracks, activeIndex) {
-  document.getElementById('videoTitle').textContent = title || ('youtube.com/watch?v=' + videoId);
-  updateStats(segments);
+function renderResults(videoId, data) {
+  currentSegments = data.segments || [];
+  $('videoTitle').textContent = data.title || ('youtube.com/watch?v=' + videoId);
+  updateStats(currentSegments);
 
-  var trackRow = document.getElementById('trackRow');
-  var trackSelect = document.getElementById('trackSelect');
-  if (tracks && tracks.length > 1) {
-    trackSelect.innerHTML = tracks.map(function(t) {
-      var parts = [t.languageCode, t.name, t.kind === 'asr' ? '(auto)' : ''].filter(Boolean);
-      return '<option value="' + t.index + '"' + (t.index === activeIndex ? ' selected' : '') + '>' + esc(parts.join(' ')) + '</option>';
+  var tracks = data.tracks || [];
+  if (tracks.length > 1) {
+    $('trackSelect').innerHTML = tracks.map(function (t) {
+      var val = t.lang + '|' + t.kind;
+      var label = t.label + (t.kind === 'asr' && !/auto/i.test(t.label) ? ' (auto-generated)' : '');
+      var sel = data.active && t.lang === data.active.lang && t.kind === data.active.kind ? ' selected' : '';
+      return '<option value="' + esc(val) + '"' + sel + '>' + esc(label) + '</option>';
     }).join('');
-    trackRow.classList.remove('hidden');
+    $('trackRow').hidden = false;
   } else {
-    trackRow.classList.add('hidden');
+    $('trackRow').hidden = true;
   }
 
-  renderSegments(segments);
-  document.getElementById('tsToggle').checked = true;
-  document.getElementById('transcriptList').classList.remove('no-ts');
-  document.getElementById('results').classList.remove('hidden');
+  renderSegments(currentSegments);
+  $('tsToggle').checked = true;
+  $('transcriptList').classList.remove('no-ts');
+  $('results').hidden = false;
 }
 
 function renderSegments(segments) {
-  document.getElementById('transcriptList').innerHTML = segments.map(function(seg) {
+  $('transcriptList').innerHTML = segments.map(function (seg) {
     return '<div class="segment"><span class="ts">' + fmt(seg.start) + '</span><span class="seg-text">' + esc(seg.text) + '</span></div>';
   }).join('');
 }
 
 function updateStats(segments) {
-  var words = segments.reduce(function(n, s) { return n + s.text.split(/\s+/).filter(Boolean).length; }, 0);
+  var words = segments.reduce(function (n, s) { return n + s.text.split(/\s+/).filter(Boolean).length; }, 0);
   var dur = segments.length ? segments[segments.length - 1].start : 0;
-  document.getElementById('videoStats').textContent =
-    segments.length + ' segments · ~' + words.toLocaleString() + ' words · ' + fmt(dur) + ' duration';
+  $('videoStats').textContent = segments.length.toLocaleString() + (segments.length === 1 ? ' line · ~' : ' lines · ~') + words.toLocaleString() + ' words · ' + fmt(dur) + ' long';
 }
 
-function toggleTimestamps() {
-  var show = document.getElementById('tsToggle').checked;
-  document.getElementById('transcriptList').classList.toggle('no-ts', !show);
-}
-
-async function copyTranscript(withTs) {
-  var btn = withTs ? document.getElementById('copyTsBtn') : document.getElementById('copyBtn');
-  var text = withTs
-    ? currentSegments.map(function(s) { return '[' + fmt(s.start) + '] ' + s.text; }).join('\n')
-    : currentSegments.map(function(s) { return s.text; }).join(' ');
-  var origText = btn.textContent;
+async function copyToClipboard(text, btn, label) {
   try {
     await navigator.clipboard.writeText(text);
   } catch (e) {
@@ -379,42 +555,56 @@ async function copyTranscript(withTs) {
     ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
   }
-  btn.textContent = '✓ Copied!';
-  btn.classList.add('copy-ok');
-  setTimeout(function() { btn.textContent = origText; btn.classList.remove('copy-ok'); }, 1800);
-}
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  btn.textContent = 'Copied';
+  setTimeout(function () { btn.textContent = label; }, 1800);
 }
 
 function setLoading(on, msg) {
-  document.getElementById('fetchBtn').disabled = on;
-  var el = document.getElementById('statusLoading');
-  if (on) {
-    document.getElementById('statusText').textContent = msg || 'Loading…';
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
-  }
+  $('fetchBtn').disabled = on;
+  if (on) $('statusText').textContent = msg || 'Loading…';
+  $('statusLoading').hidden = !on;
 }
 
-function showErr(msg) {
-  document.getElementById('errText').textContent = msg;
-  document.getElementById('statusErr').classList.remove('hidden');
+function showErr(data, videoId) {
+  $('errText').textContent = data.error || 'Something went wrong.';
+  $('errBlocked').hidden = !data.blocked;
+  if (videoId) $('openVideo').href = 'https://www.youtube.com/watch?v=' + videoId;
+  var attempts = data.attempts || [];
+  $('errDetails').hidden = !attempts.length;
+  $('errPre').textContent = attempts.map(function (a) {
+    return a.via + ': ' + [a.status, a.reason, a.error].filter(Boolean).join(' · ');
+  }).join('\n');
+  $('statusErr').hidden = false;
 }
 
-function hideErr() {
-  document.getElementById('statusErr').classList.add('hidden');
-}
+function hideErr() { $('statusErr').hidden = true; }
 
-document.getElementById('urlInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') handleFetch();
-  document.getElementById('urlInput').classList.remove('error');
+$('form').addEventListener('submit', function (e) { e.preventDefault(); handleFetch(); });
+$('urlInput').addEventListener('input', function () { $('urlInput').classList.remove('error'); });
+$('tsToggle').addEventListener('change', function () { $('transcriptList').classList.toggle('no-ts', !$('tsToggle').checked); });
+$('trackSelect').addEventListener('change', switchTrack);
+$('copyBtn').addEventListener('click', function () {
+  copyToClipboard(currentSegments.map(function (s) { return s.text; }).join(' '), $('copyBtn'), 'Copy text');
 });
+$('copyTsBtn').addEventListener('click', function () {
+  copyToClipboard(currentSegments.map(function (s) { return '[' + fmt(s.start) + '] ' + s.text; }).join('\n'), $('copyTsBtn'), 'Copy with timestamps');
+});
+
+var bookmarkletHref = 'javascript:' + encodeURIComponent(
+  $('bookmarkletSrc').textContent.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).join('\n')
+);
+$('bmLink').href = bookmarkletHref;
+$('bmLink').addEventListener('click', function (e) {
+  e.preventDefault();
+  var hint = $('bmHint');
+  hint.textContent = 'Drag it to your bookmarks bar, then click it on a YouTube video';
+  hint.classList.add('flash');
+  setTimeout(function () { hint.classList.remove('flash'); }, 2500);
+});
+$('copyBm').addEventListener('click', function () { copyToClipboard(bookmarkletHref, $('copyBm'), 'Copy button code'); });
 </script>
 </body>
 </html>
