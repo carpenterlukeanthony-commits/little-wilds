@@ -236,37 +236,6 @@ let currentSegments = [];
 let allTracks = [];
 let currentVideoId = '';
 
-const PROXIES = [
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
-];
-
-function timedFetch(url, opts, ms) {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('Timeout after ' + ms + 'ms')), ms);
-    fetch(url, opts || {}).then(
-      r => { clearTimeout(t); resolve(r); },
-      e => { clearTimeout(t); reject(e); }
-    );
-  });
-}
-
-async function proxyFetch(url, opts) {
-  const errors = [];
-  for (let i = 0; i < PROXIES.length; i++) {
-    const proxyUrl = PROXIES[i](url);
-    try {
-      const res = await timedFetch(proxyUrl, opts, 15000);
-      if (res.ok) return res;
-      errors.push('proxy' + (i+1) + ': HTTP ' + res.status);
-    } catch (e) {
-      errors.push('proxy' + (i+1) + ': ' + e.message);
-    }
-  }
-  throw new Error('All proxies failed — ' + errors.join(', '));
-}
-
 function extractVideoId(input) {
   input = input.trim();
   var patterns = [
@@ -293,55 +262,25 @@ function fmt(secs) {
 }
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
-function extractPlayerResponse(html) {
-  var marker = 'ytInitialPlayerResponse';
-  var idx = html.indexOf(marker);
-  if (idx === -1) throw new Error('Could not parse YouTube page — may be a consent/cookie page');
-  idx = html.indexOf('{', idx);
-  if (idx === -1) throw new Error('Could not find JSON start in page');
-  var depth = 0, i = idx;
-  for (; i < html.length; i++) {
-    if (html[i] === '{') depth++;
-    else if (html[i] === '}') { if (--depth === 0) break; }
-  }
-  return JSON.parse(html.slice(idx, i + 1));
-}
-
-function parseTranscriptText(text) {
-  text = text.trim();
-  if (text.startsWith('{')) {
-    var data = JSON.parse(text);
-    if (!data.events) throw new Error('No caption events in response');
-    return data.events
-      .filter(function(e) { return e.segs; })
-      .map(function(e) {
-        return {
-          start: (e.tStartMs || 0) / 1000,
-          text: e.segs.map(function(s) { return s.utf8 || ''; }).join('').trim().replace(/\n/g, ' ')
-        };
-      })
-      .filter(function(e) { return e.text; });
-  }
-  if (text.includes('<text')) {
-    var doc = new DOMParser().parseFromString(text, 'text/xml');
-    return Array.from(doc.querySelectorAll('text')).map(function(el) {
+function eventsToSegments(events) {
+  return (events || [])
+    .filter(function(e) { return e.segs; })
+    .map(function(e) {
       return {
-        start: parseFloat(el.getAttribute('start') || '0'),
-        text: el.textContent
-          .replace(/&#(\d+);/g, function(_, n) { return String.fromCharCode(+n); })
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
+        start: (e.tStartMs || 0) / 1000,
+        text: e.segs.map(function(s) { return s.utf8 || ''; }).join('').trim().replace(/\n/g, ' ')
       };
-    }).filter(function(e) { return e.text; });
-  }
-  throw new Error('Unrecognized transcript format');
+    })
+    .filter(function(e) { return e.text; });
 }
 
-async function fetchSegments(baseUrl) {
-  var url = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'fmt=json3';
-  var res = await proxyFetch(url);
-  var text = await res.text();
-  if (!text.trim()) throw new Error('Empty transcript response');
-  return parseTranscriptText(text);
+async function callApi(videoId, trackIndex) {
+  var url = '/api/transcript?v=' + videoId;
+  if (trackIndex != null) url += '&track=' + trackIndex;
+  var res = await fetch(url);
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API error ' + res.status);
+  return data;
 }
 
 async function handleFetch() {
@@ -356,34 +295,13 @@ async function handleFetch() {
   currentVideoId = videoId;
   hideErr();
   document.getElementById('results').classList.add('hidden');
-  setLoading(true, 'Loading YouTube page…');
+  setLoading(true, 'Fetching transcript…');
 
   try {
-    var pageRes = await proxyFetch('https://www.youtube.com/watch?v=' + videoId, {
-      headers: { 'Accept-Language': 'en-US,en;q=0.9' }
-    });
-    var html = await pageRes.text();
-
-    setLoading(true, 'Parsing caption tracks…');
-    var playerResponse = extractPlayerResponse(html);
-    var captionTracks = playerResponse &&
-      playerResponse.captions &&
-      playerResponse.captions.playerCaptionsTracklistRenderer &&
-      playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
-
-    if (!captionTracks || !captionTracks.length) {
-      throw new Error('No captions found — this video may have captions disabled.');
-    }
-
-    allTracks = captionTracks;
-    var active = captionTracks.find(function(t) { return t.languageCode && t.languageCode.startsWith('en') && !t.kind; })
-      || captionTracks.find(function(t) { return t.languageCode && t.languageCode.startsWith('en'); })
-      || captionTracks[0];
-
-    setLoading(true, 'Downloading transcript…');
-    var segments = await fetchSegments(active.baseUrl);
-    currentSegments = segments;
-    renderResults(videoId, playerResponse, segments, captionTracks, active);
+    var data = await callApi(videoId);
+    allTracks = data.tracks;
+    currentSegments = eventsToSegments(data.events);
+    renderResults(videoId, data.title, currentSegments, data.tracks, data.activeIndex);
     setLoading(false);
   } catch (e) {
     setLoading(false);
@@ -394,14 +312,12 @@ async function handleFetch() {
 async function switchTrack() {
   var sel = document.getElementById('trackSelect');
   var idx = parseInt(sel.value, 10);
-  var track = allTracks[idx];
-  if (!track || !track.baseUrl) return;
   setLoading(true, 'Switching track…');
   try {
-    var segments = await fetchSegments(track.baseUrl);
-    currentSegments = segments;
-    renderSegments(segments);
-    updateStats(segments);
+    var data = await callApi(currentVideoId, idx);
+    currentSegments = eventsToSegments(data.events);
+    renderSegments(currentSegments);
+    updateStats(currentSegments);
     setLoading(false);
   } catch (e) {
     setLoading(false);
@@ -409,18 +325,16 @@ async function switchTrack() {
   }
 }
 
-function renderResults(videoId, playerResponse, segments, tracks, activeTrack) {
-  var title = (playerResponse.videoDetails && playerResponse.videoDetails.title)
-    || ('youtube.com/watch?v=' + videoId);
-  document.getElementById('videoTitle').textContent = title;
+function renderResults(videoId, title, segments, tracks, activeIndex) {
+  document.getElementById('videoTitle').textContent = title || ('youtube.com/watch?v=' + videoId);
   updateStats(segments);
 
   var trackRow = document.getElementById('trackRow');
   var trackSelect = document.getElementById('trackSelect');
-  if (tracks.length > 1) {
-    trackSelect.innerHTML = tracks.map(function(t, i) {
-      var parts = [t.languageCode, t.name && t.name.simpleText, t.kind === 'asr' ? '(auto)' : ''].filter(Boolean);
-      return '<option value="' + i + '"' + (t.baseUrl === activeTrack.baseUrl ? ' selected' : '') + '>' + esc(parts.join(' ')) + '</option>';
+  if (tracks && tracks.length > 1) {
+    trackSelect.innerHTML = tracks.map(function(t) {
+      var parts = [t.languageCode, t.name, t.kind === 'asr' ? '(auto)' : ''].filter(Boolean);
+      return '<option value="' + t.index + '"' + (t.index === activeIndex ? ' selected' : '') + '>' + esc(parts.join(' ')) + '</option>';
     }).join('');
     trackRow.classList.remove('hidden');
   } else {
