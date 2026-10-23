@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT Transcript</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f4f5fb;
+  --surface: #ffffff;
+  --surface2: #eef0f8;
+  --border: #dde0f0;
+  --text: #1a1c2e;
+  --muted: #6b7491;
+  --accent: #3556f5;
+  --accent-dim: #3556f514;
+  --accent-hover: #2441d6;
+  --err: #c8313a;
+  --err-dim: #c8313a14;
+  --ok: #1a9e5e;
+  --ts-text: #5560a0;
+  --r: 10px;
+  --r-sm: 7px;
+  --shadow: 0 2px 12px rgba(30,40,100,.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0d15;
+    --surface: #13141f;
+    --surface2: #1a1b2b;
+    --border: #25273c;
+    --text: #dde0f5;
+    --muted: #7079a8;
+    --accent: #5b78ff;
+    --accent-dim: #5b78ff18;
+    --accent-hover: #7090ff;
+    --err: #f0565e;
+    --err-dim: #f0565e18;
+    --ok: #34d68e;
+    --ts-text: #8090c8;
+    --shadow: 0 2px 16px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 0 16px;
+  min-height: 100vh;
+}
+.page { max-width: 780px; margin: 0 auto; padding: 48px 0 72px; }
+.header { margin-bottom: 40px; }
+.header h1 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 2rem; font-weight: 700;
+  letter-spacing: -.025em; line-height: 1.1; margin-bottom: 6px;
+}
+.header p { color: var(--muted); font-size: 14px; }
+.input-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); margin-bottom: 28px;
+}
+.input-row { display: flex; gap: 10px; align-items: stretch; }
+.url-input {
+  flex: 1; min-width: 0;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 10px 14px; transition: border-color .15s; outline: none;
+}
+.url-input::placeholder { color: var(--muted); }
+.url-input:focus { border-color: var(--accent); }
+.url-input.error { border-color: var(--err); }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600; padding: 10px 20px;
+  cursor: pointer; white-space: nowrap; transition: background .15s, opacity .15s;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn:active { opacity: .85; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-ghost {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--border); }
+.btn-sm { padding: 7px 13px; font-size: 13px; }
+.status {
+  margin-top: 14px; padding: 10px 14px; border-radius: var(--r-sm);
+  font-size: 13px; display: flex; align-items: center; gap: 8px;
+}
+.status.hidden { display: none; }
+.status.loading { background: var(--accent-dim); color: var(--accent); }
+.status.err { background: var(--err-dim); color: var(--err); }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.results.hidden { display: none; }
+.results-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.video-meta { min-width: 0; }
+.video-title {
+  font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.05rem;
+  font-weight: 600; letter-spacing: -.01em; word-break: break-word; margin-bottom: 3px;
+}
+.video-stats { font-size: 12px; color: var(--muted); }
+.actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.track-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.track-row.hidden { display: none; }
+.track-row label { font-size: 13px; color: var(--muted); }
+.track-select {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 5px 10px; cursor: pointer; outline: none;
+}
+.track-select:focus { border-color: var(--accent); }
+.toggle-row {
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+  color: var(--muted); cursor: pointer; user-select: none; margin-bottom: 12px;
+}
+.toggle-row input { accent-color: var(--accent); cursor: pointer; }
+.transcript-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden;
+}
+.transcript-list { max-height: 560px; overflow-y: auto; padding: 4px 0; }
+.transcript-list::-webkit-scrollbar { width: 6px; }
+.transcript-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.segment {
+  display: grid; grid-template-columns: 64px 1fr;
+  padding: 7px 16px; border-bottom: 1px solid var(--border); transition: background .1s;
+}
+.segment:last-child { border-bottom: none; }
+.segment:hover { background: var(--accent-dim); }
+.ts {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ts-text); padding-top: 2px; user-select: none;
+}
+.seg-text { font-size: 14px; line-height: 1.65; word-break: break-word; }
+.no-ts .segment { grid-template-columns: 1fr; }
+.no-ts .ts { display: none; }
+.copy-ok { color: var(--ok) !important; }
+@media (max-width: 520px) {
+  .page { padding: 28px 0 48px; }
+  .header h1 { font-size: 1.5rem; }
+  .input-row { flex-direction: column; }
+  .results-header { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="header">
+    <h1>YT Transcript</h1>
+    <p>Paste any YouTube URL to extract the full transcript</p>
+  </header>
+
+  <div class="input-card">
+    <div class="input-row">
+      <input class="url-input" id="urlInput" type="url"
+        placeholder="https://youtube.com/watch?v=… or youtu.be/…"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn" id="fetchBtn" onclick="handleFetch()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v6m0 0 3-3M8 8 5 5M2 10.5c0 1.93 1.57 3.5 3.5 3.5h5A3.5 3.5 0 0 0 14 10.5v-.17"
+            stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Get Transcript
+      </button>
+    </div>
+    <div class="status loading hidden" id="statusLoading">
+      <span class="spinner"></span>
+      <span id="statusText">Loading…</span>
+    </div>
+    <div class="status err hidden" id="statusErr">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <span id="errText"></span>
+    </div>
+  </div>
+
+  <div class="results hidden" id="results">
+    <div class="results-header">
+      <div class="video-meta">
+        <div class="video-title" id="videoTitle"></div>
+        <div class="video-stats" id="videoStats"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" id="copyBtn" onclick="copyTranscript(false)">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <rect x="5.5" y="5.5" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v2.5"
+              stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Copy text
+        </button>
+        <button class="btn btn-ghost btn-sm" id="copyTsBtn" onclick="copyTranscript(true)">
+          Copy with timestamps
+        </button>
+      </div>
+    </div>
+
+    <div class="track-row hidden" id="trackRow">
+      <label for="trackSelect">Track:</label>
+      <select class="track-select" id="trackSelect" onchange="switchTrack()"></select>
+    </div>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="tsToggle" checked onchange="toggleTimestamps()">
+      Show timestamps
+    </label>
+
+    <div class="transcript-panel">
+      <div class="transcript-list" id="transcriptList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentSegments = [];
+let allTracks = [];
+let currentVideoId = '';
+
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.org/?${encodeURIComponent(u)}`,
+];
+
+function timedFetch(url, opts, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Timeout after ' + ms + 'ms')), ms);
+    fetch(url, opts || {}).then(
+      r => { clearTimeout(t); resolve(r); },
+      e => { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
+async function proxyFetch(url, opts) {
+  const errors = [];
+  for (let i = 0; i < PROXIES.length; i++) {
+    const proxyUrl = PROXIES[i](url);
+    try {
+      const res = await timedFetch(proxyUrl, opts, 15000);
+      if (res.ok) return res;
+      errors.push('proxy' + (i+1) + ': HTTP ' + res.status);
+    } catch (e) {
+      errors.push('proxy' + (i+1) + ': ' + e.message);
+    }
+  }
+  throw new Error('All proxies failed — ' + errors.join(', '));
+}
+
+function extractVideoId(input) {
+  input = input.trim();
+  var patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = input.match(patterns[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function fmt(secs) {
+  var s = Math.floor(secs);
+  var h = Math.floor(s / 3600);
+  var m = Math.floor((s % 3600) / 60);
+  var sec = s % 60;
+  if (h > 0) return h + ':' + pad(m) + ':' + pad(sec);
+  return m + ':' + pad(sec);
+}
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function extractPlayerResponse(html) {
+  var marker = 'ytInitialPlayerResponse';
+  var idx = html.indexOf(marker);
+  if (idx === -1) throw new Error('Could not parse YouTube page — may be a consent/cookie page');
+  idx = html.indexOf('{', idx);
+  if (idx === -1) throw new Error('Could not find JSON start in page');
+  var depth = 0, i = idx;
+  for (; i < html.length; i++) {
+    if (html[i] === '{') depth++;
+    else if (html[i] === '}') { if (--depth === 0) break; }
+  }
+  return JSON.parse(html.slice(idx, i + 1));
+}
+
+function parseTranscriptText(text) {
+  text = text.trim();
+  if (text.startsWith('{')) {
+    var data = JSON.parse(text);
+    if (!data.events) throw new Error('No caption events in response');
+    return data.events
+      .filter(function(e) { return e.segs; })
+      .map(function(e) {
+        return {
+          start: (e.tStartMs || 0) / 1000,
+          text: e.segs.map(function(s) { return s.utf8 || ''; }).join('').trim().replace(/\n/g, ' ')
+        };
+      })
+      .filter(function(e) { return e.text; });
+  }
+  if (text.includes('<text')) {
+    var doc = new DOMParser().parseFromString(text, 'text/xml');
+    return Array.from(doc.querySelectorAll('text')).map(function(el) {
+      return {
+        start: parseFloat(el.getAttribute('start') || '0'),
+        text: el.textContent
+          .replace(/&#(\d+);/g, function(_, n) { return String.fromCharCode(+n); })
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
+      };
+    }).filter(function(e) { return e.text; });
+  }
+  throw new Error('Unrecognized transcript format');
+}
+
+async function fetchSegments(baseUrl) {
+  var url = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'fmt=json3';
+  var res = await proxyFetch(url);
+  var text = await res.text();
+  if (!text.trim()) throw new Error('Empty transcript response');
+  return parseTranscriptText(text);
+}
+
+async function handleFetch() {
+  var input = document.getElementById('urlInput');
+  var videoId = extractVideoId(input.value);
+  if (!videoId) {
+    input.classList.add('error');
+    showErr('Could not find a YouTube video ID in that URL.');
+    return;
+  }
+  input.classList.remove('error');
+  currentVideoId = videoId;
+  hideErr();
+  document.getElementById('results').classList.add('hidden');
+  setLoading(true, 'Loading YouTube page…');
+
+  try {
+    var pageRes = await proxyFetch('https://www.youtube.com/watch?v=' + videoId, {
+      headers: { 'Accept-Language': 'en-US,en;q=0.9' }
+    });
+    var html = await pageRes.text();
+
+    setLoading(true, 'Parsing caption tracks…');
+    var playerResponse = extractPlayerResponse(html);
+    var captionTracks = playerResponse &&
+      playerResponse.captions &&
+      playerResponse.captions.playerCaptionsTracklistRenderer &&
+      playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
+
+    if (!captionTracks || !captionTracks.length) {
+      throw new Error('No captions found — this video may have captions disabled.');
+    }
+
+    allTracks = captionTracks;
+    var active = captionTracks.find(function(t) { return t.languageCode && t.languageCode.startsWith('en') && !t.kind; })
+      || captionTracks.find(function(t) { return t.languageCode && t.languageCode.startsWith('en'); })
+      || captionTracks[0];
+
+    setLoading(true, 'Downloading transcript…');
+    var segments = await fetchSegments(active.baseUrl);
+    currentSegments = segments;
+    renderResults(videoId, playerResponse, segments, captionTracks, active);
+    setLoading(false);
+  } catch (e) {
+    setLoading(false);
+    showErr(e.message);
+  }
+}
+
+async function switchTrack() {
+  var sel = document.getElementById('trackSelect');
+  var idx = parseInt(sel.value, 10);
+  var track = allTracks[idx];
+  if (!track || !track.baseUrl) return;
+  setLoading(true, 'Switching track…');
+  try {
+    var segments = await fetchSegments(track.baseUrl);
+    currentSegments = segments;
+    renderSegments(segments);
+    updateStats(segments);
+    setLoading(false);
+  } catch (e) {
+    setLoading(false);
+    showErr('Could not load that track: ' + e.message);
+  }
+}
+
+function renderResults(videoId, playerResponse, segments, tracks, activeTrack) {
+  var title = (playerResponse.videoDetails && playerResponse.videoDetails.title)
+    || ('youtube.com/watch?v=' + videoId);
+  document.getElementById('videoTitle').textContent = title;
+  updateStats(segments);
+
+  var trackRow = document.getElementById('trackRow');
+  var trackSelect = document.getElementById('trackSelect');
+  if (tracks.length > 1) {
+    trackSelect.innerHTML = tracks.map(function(t, i) {
+      var parts = [t.languageCode, t.name && t.name.simpleText, t.kind === 'asr' ? '(auto)' : ''].filter(Boolean);
+      return '<option value="' + i + '"' + (t.baseUrl === activeTrack.baseUrl ? ' selected' : '') + '>' + esc(parts.join(' ')) + '</option>';
+    }).join('');
+    trackRow.classList.remove('hidden');
+  } else {
+    trackRow.classList.add('hidden');
+  }
+
+  renderSegments(segments);
+  document.getElementById('tsToggle').checked = true;
+  document.getElementById('transcriptList').classList.remove('no-ts');
+  document.getElementById('results').classList.remove('hidden');
+}
+
+function renderSegments(segments) {
+  document.getElementById('transcriptList').innerHTML = segments.map(function(seg) {
+    return '<div class="segment"><span class="ts">' + fmt(seg.start) + '</span><span class="seg-text">' + esc(seg.text) + '</span></div>';
+  }).join('');
+}
+
+function updateStats(segments) {
+  var words = segments.reduce(function(n, s) { return n + s.text.split(/\s+/).filter(Boolean).length; }, 0);
+  var dur = segments.length ? segments[segments.length - 1].start : 0;
+  document.getElementById('videoStats').textContent =
+    segments.length + ' segments · ~' + words.toLocaleString() + ' words · ' + fmt(dur) + ' duration';
+}
+
+function toggleTimestamps() {
+  var show = document.getElementById('tsToggle').checked;
+  document.getElementById('transcriptList').classList.toggle('no-ts', !show);
+}
+
+async function copyTranscript(withTs) {
+  var btn = withTs ? document.getElementById('copyTsBtn') : document.getElementById('copyBtn');
+  var text = withTs
+    ? currentSegments.map(function(s) { return '[' + fmt(s.start) + '] ' + s.text; }).join('\n')
+    : currentSegments.map(function(s) { return s.text; }).join(' ');
+  var origText = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copy-ok');
+  setTimeout(function() { btn.textContent = origText; btn.classList.remove('copy-ok'); }, 1800);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setLoading(on, msg) {
+  document.getElementById('fetchBtn').disabled = on;
+  var el = document.getElementById('statusLoading');
+  if (on) {
+    document.getElementById('statusText').textContent = msg || 'Loading…';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+function showErr(msg) {
+  document.getElementById('errText').textContent = msg;
+  document.getElementById('statusErr').classList.remove('hidden');
+}
+
+function hideErr() {
+  document.getElementById('statusErr').classList.add('hidden');
+}
+
+document.getElementById('urlInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleFetch();
+  document.getElementById('urlInput').classList.remove('error');
+});
+</script>
+</body>
+</html>
